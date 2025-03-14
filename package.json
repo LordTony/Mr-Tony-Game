@@ -1,0 +1,33 @@
+{
+  "name": "mrtonygame",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "start": "vite",
+    "build": "tsc && vite build",
+    "serve": "vite preview"
+  },
+  "repository": {},
+  "keywords": [
+    "excalibur",
+    "excaliburjs",
+    "vite",
+    "game-engine"
+  ],
+  "author": "",
+  "license": "",
+  "bugs": {},
+  "homepage": "",
+  "dependencies": {
+    "excalibur": "0.30.3",
+    "peerjs": "^1.5.4"
+  },
+  "devDependencies": {
+    "sass": "^1.85.1",
+    "sass-embedded": "^1.85.1",
+    "typescript": "5.8.2",
+    "vite": "6.2.1"
+  }
+}
