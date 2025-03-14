@@ -54,19 +54,7 @@ function toggleButtonKeyupHandler(event: KeyboardEvent) {
  * @param {HTMLElement} button
  */
 function toggleButtonState(button: HTMLElement) {
-    if(button.id === 'mute') {
-        const isAriaPressed = button.getAttribute('aria-pressed') === 'true';
-        button.setAttribute('aria-pressed', isAriaPressed ? 'false' : 'true');
-        if (!isAriaPressed) {
-            Resources.BackgroundMusic.volume = 0;
-            Resources.FlapSound.volume = 0;
-            Resources.FailSound.volume = 0;
-        } else {
-            Resources.BackgroundMusic.volume = 1;
-            Resources.FlapSound.volume = 1;
-            Resources.FailSound.volume = 1;
-        }
-    } else if(button.id === 'create-game') {
+    if(button.id === 'create-game') {
         const peer = new Peer("player-1");
         peer.on('open', actualId => {
             console.log(`Connect using ${actualId}`);

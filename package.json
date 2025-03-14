@@ -23,9 +23,12 @@
   "dependencies": {
     "binary-parser-encoder": "^1.5.3",
     "excalibur": "0.30.3",
+    "lodash-es": "^4.17.21",
     "peerjs": "^1.5.4"
   },
   "devDependencies": {
+    "@types/lodash-es": "^4.17.12",
+    "prettier": "^3.5.3",
     "sass-embedded": "^1.85.1",
     "typescript": "5.8.2",
     "vite": "6.2.1"
