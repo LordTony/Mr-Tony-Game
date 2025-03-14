@@ -1,18 +1,16 @@
-import * as ex from "excalibur";
+import { Actor, vec } from "excalibur";
 import { Level } from "./level";
 import { Config } from "./config";
-import { Resources } from "./resources";
 
-
-export class ScoreTrigger extends ex.Actor {
+export class ScoreTrigger extends Actor {
     constructor(pos: ex.Vector, private level: Level) {
         super({
             pos,
             width: 32,
             height: Config.PipeGap,
-            anchor: ex.vec(0, 0),
+            anchor: vec(0, 0),
             // color: ex.Color.Violet,
-            vel: ex.vec(-Config.PipeSpeed, 0)
+            vel: vec(-Config.PipeSpeed, 0)
         })
 
         this.on('exitviewport', () => {
@@ -22,6 +20,5 @@ export class ScoreTrigger extends ex.Actor {
 
     override onCollisionStart(): void {
         this.level.incrementScore();
-        Resources.ScoreSound.play();
     }
 }

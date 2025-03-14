@@ -49,8 +49,7 @@ export class Level extends ex.Scene {
     });
 
     override onActivate(): void {
-        Resources.BackgroundMusic.loop = true;
-        //Resources.BackgroundMusic.play();
+        // no-op
     }
 
     override onInitialize(engine: ex.Engine): void {
@@ -111,6 +110,5 @@ export class Level extends ex.Scene {
         this.bird.stop();
         this.ground.stop();
         this.showStartInstructions();
-        Resources.FailSound.play();
     }
 }

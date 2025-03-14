@@ -12,14 +12,6 @@ export const Resources = {
     GroundImage: new ex.ImageSource('./images/ground.png', {
         wrapping: ex.ImageWrapping.Repeat
     }),
-
-    // Sounds
-    FlapSound: new ex.Sound('./sounds/flap.wav'),
-    FailSound: new ex.Sound('./sounds/fail.wav'),
-    ScoreSound: new ex.Sound('./sounds/score.wav'),
-
-    // Music
-    BackgroundMusic: new ex.Sound('./sounds/two_left_socks.ogg')
 } as const;
 
 export const ConnectionManager: { Connection: Peer | undefined } = {

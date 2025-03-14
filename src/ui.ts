@@ -1,5 +1,5 @@
 import Peer from "peerjs";
-import { Resources, ConnectionManager } from "./resources";
+import { Resources } from "./resources";
 
 export function initButtons() {
     const ui_buttons = document.querySelectorAll('.ui button');

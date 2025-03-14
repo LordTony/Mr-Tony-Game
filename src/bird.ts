@@ -65,8 +65,6 @@ export class Bird extends ex.Actor {
             // rewind
             this.upAnimation.reset();
             this.downAnimation.reset();
-            // play sound effect
-            Resources.FlapSound.play();
         }
 
         if (!this.isInputActive(engine)) {

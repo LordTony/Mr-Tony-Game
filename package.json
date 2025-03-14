@@ -21,11 +21,11 @@
   "bugs": {},
   "homepage": "",
   "dependencies": {
+    "binary-parser-encoder": "^1.5.3",
     "excalibur": "0.30.3",
     "peerjs": "^1.5.4"
   },
   "devDependencies": {
-    "sass": "^1.85.1",
     "sass-embedded": "^1.85.1",
     "typescript": "5.8.2",
     "vite": "6.2.1"
