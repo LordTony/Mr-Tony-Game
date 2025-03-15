@@ -29,8 +29,10 @@
   "devDependencies": {
     "@types/lodash-es": "^4.17.12",
     "prettier": "^3.5.3",
+    "prettier-plugin-organize-imports": "^4.1.0",
     "sass-embedded": "^1.85.1",
     "typescript": "5.8.2",
-    "vite": "6.2.1"
+    "vite": "6.2.1",
+    "vite-plugin-node-polyfills": "^0.23.0"
   }
 }

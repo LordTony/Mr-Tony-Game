@@ -1,11 +1,11 @@
-import * as ex from 'excalibur';
-import { Resources } from './resources';
+import { Color, DisplayMode, Engine, Loader } from 'excalibur';
 import { Level } from './level';
+import { Resources } from './resources';
 import { initButtons } from './ui';
 
 const padding = 10;
 
-const handleResize = (game: ex.Engine) => {
+const handleResize = (game: Engine) => {
 	console.log('resized in some way');
 	const ui = document.getElementsByClassName('ui')[0] as HTMLElement;
 	if (ui) {
@@ -18,22 +18,22 @@ const handleResize = (game: ex.Engine) => {
 	const double_padding = padding * 2;
 	game.screen.viewport = {
 		width: document.body.clientWidth - double_padding,
-		height: document.body.clientHeight - double_padding,
+		height: document.body.clientHeight - double_padding
 	};
 	game.screen.applyResolutionAndViewport();
 };
 
 const double_padding = padding * 2;
-const game = new ex.Engine({
+const game = new Engine({
 	width: document.body.clientWidth - double_padding,
 	height: document.body.clientHeight - double_padding,
-	backgroundColor: ex.Color.fromHex('#54C0CA'),
+	backgroundColor: Color.fromHex('#54C0CA'),
 	antialiasing: true,
-	displayMode: ex.DisplayMode.FitScreen,
-	scenes: { Level },
+	displayMode: DisplayMode.FitScreen,
+	scenes: { Level }
 });
 
-const loader = new ex.Loader(Object.values(Resources));
+const loader = new Loader(Object.values(Resources));
 game.start(loader).then(() => {
 	game.goToScene('Level');
 	handleResize(game);

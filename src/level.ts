@@ -1,25 +1,22 @@
 import {
-	Scene,
-	vec,
-	Label,
-	Font,
-	Random,
 	Color,
-	TextAlign,
 	Engine,
+	Font,
+	Label,
+	Random,
+	Scene,
+	SceneActivationContext,
+	TextAlign
 } from 'excalibur';
 import { Bird } from './bird';
-import { PipeFactory } from './pipe-factory';
-import { Config } from './config';
-import { Ground } from './ground';
+import { MoveObjEvent, PacketEventManager } from './packet-event-manager';
 
 export class Level extends Scene {
 	score: number = 0;
 	best: number = 0;
 	random = new Random();
-	pipeFactory = new PipeFactory(this, this.random, Config.PipeInterval);
 	bird = new Bird(this);
-	ground!: Ground;
+	packet_event_manager = new PacketEventManager();
 
 	startGameLabel = new Label({
 		text: 'Tap to Start',
@@ -29,8 +26,8 @@ export class Level extends Scene {
 		font: new Font({
 			size: 30,
 			color: Color.White,
-			textAlign: TextAlign.Center,
-		}),
+			textAlign: TextAlign.Center
+		})
 	});
 
 	scoreLabel = new Label({
@@ -40,8 +37,8 @@ export class Level extends Scene {
 		z: 2,
 		font: new Font({
 			size: 20,
-			color: Color.White,
-		}),
+			color: Color.White
+		})
 	});
 
 	bestLabel = new Label({
@@ -52,13 +49,19 @@ export class Level extends Scene {
 		font: new Font({
 			size: 20,
 			color: Color.White,
-			textAlign: TextAlign.End,
-		}),
+			textAlign: TextAlign.End
+		})
 	});
 
 	override onActivate(): void {
-		// no-op
+		this.packet_event_manager.Events.on('move_obj', (event: MoveObjEvent) => {
+			alert(
+				`Object Id to move: ${event.target.obj_id} to X,Y: ${event.target.x},${event.target.y}`
+			);
+		});
 	}
+
+	override onDeactivate(_context: SceneActivationContext): void {}
 
 	override onInitialize(engine: Engine): void {
 		this.add(this.bird);
@@ -66,9 +69,6 @@ export class Level extends Scene {
 		this.add(this.startGameLabel);
 		this.add(this.scoreLabel);
 		this.add(this.bestLabel);
-
-		this.ground = new Ground(vec(0, engine.screen.drawHeight - 64));
-		this.add(this.ground);
 
 		const bestScore = localStorage.getItem('bestScore');
 		if (bestScore) {
@@ -101,22 +101,17 @@ export class Level extends Scene {
 
 			this.startGameLabel.graphics.isVisible = false;
 			this.bird.start();
-			this.pipeFactory.start();
-			this.ground.start();
 		});
 	}
 
 	reset() {
 		this.bird.reset();
-		this.pipeFactory.reset();
 		this.score = 0;
 		this.scoreLabel.text = `Score: ${this.score}`;
 	}
 
 	triggerGameOver() {
-		this.pipeFactory.stop();
 		this.bird.stop();
-		this.ground.stop();
 		this.showStartInstructions();
 	}
 }
