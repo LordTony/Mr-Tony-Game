@@ -25,6 +25,6 @@ export class MoveObjectMessage implements BasePacketMessage {
 
 	@Cache
 	static GetParser(): Parser {
-		return new Parser().bit6('obj_id').bit3('play_zone').bit11('x').uint16('y');
+		return new Parser().bit10('obj_id').bit3('play_zone').uint16('x').uint16('y');
 	}
 }
