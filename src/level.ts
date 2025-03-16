@@ -79,7 +79,7 @@ export class Level extends Scene {
 							vec(event.target.x, event.target.y)
 						);
 
-						cardToMove.addToTopOfDrawStack();
+						cardToMove.moveToTopOfDrawStack();
 						cardToMove.actions.moveTo({
 							pos: vec(event.target.x, event.target.y),
 							duration: distanceToMove < 200 ? 300 : 500,
@@ -111,7 +111,7 @@ export class Level extends Scene {
 				this.dragged_card = top_clicked_card;
 				this.dragged_card_offset = this.dragged_card.pos.sub(evt.worldPos);
 
-				this.dragged_card.addToTopOfDrawStack();
+				this.dragged_card.moveToTopOfDrawStack();
 			}
 		});
 

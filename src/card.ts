@@ -44,10 +44,8 @@ export class Card extends Actor {
 		});
 	}
 
-	addToTopOfDrawStack() {
+	moveToTopOfDrawStack() {
 		Card.top_of_draw_stack++;
 		this.z = Card.top_of_draw_stack;
-
-		console.log(`added ${this.card_name} to the top of the draw stack ${this.z}`);
 	}
 }
