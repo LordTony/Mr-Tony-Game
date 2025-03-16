@@ -16,6 +16,8 @@ export class CardZone extends Actor {
 		height: 500 * card_aspect_ratio
 	};
 	private img_placeholder: NineSlice;
+	private current_card_image: ImageSource | undefined | null;
+
 	constructor(position: Vector) {
 		super({ pos: position, anchor: Vector.Zero });
 
@@ -43,10 +45,14 @@ export class CardZone extends Actor {
 	}
 
 	setPreviewImage(card_img: ImageSource | undefined | null) {
+		if (card_img == this.current_card_image) {
+			return;
+		}
 		if (card_img && card_img.isLoaded()) {
 			this.graphics.use(card_img.toSprite({ destSize: CardZone.zone_size }));
 		} else {
 			this.graphics.use(this.img_placeholder);
 		}
+		this.current_card_image = card_img;
 	}
 }

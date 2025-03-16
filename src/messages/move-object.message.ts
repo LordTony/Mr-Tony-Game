@@ -1,6 +1,5 @@
-import { Parser } from 'binary-parser-encoder';
 import { PacketMessageType } from '../packet-event-manager';
-import { Cache } from '../utils/cache-attribute';
+import { GetEnumParserFunction, ParserFunc } from '../utils/parser-func.attribute';
 import { BasePacketMessage } from './base-packet.message';
 
 export enum PlayZoneType {
@@ -16,15 +15,22 @@ export enum PlayZoneType {
 export class MoveObjectMessage implements BasePacketMessage {
 	public message_type: PacketMessageType = PacketMessageType.Move_Obj;
 
-	constructor(
-		public obj_id: number,
-		public play_zone: PlayZoneType,
-		public x: number,
-		public y: number
-	) {}
+	@ParserFunc('bit10')
+	public obj_id: number;
 
-	@Cache
-	static GetParser(): Parser {
-		return new Parser().bit10('obj_id').bit3('play_zone').uint16('x').uint16('y');
+	@ParserFunc(GetEnumParserFunction(PlayZoneType))
+	public play_zone: PlayZoneType;
+
+	@ParserFunc('uint16')
+	public x: number;
+
+	@ParserFunc('uint16')
+	public y: number;
+
+	constructor(obj_id: number, play_zone: PlayZoneType, x: number, y: number) {
+		this.obj_id = obj_id;
+		this.play_zone = play_zone;
+		this.x = x;
+		this.y = y;
 	}
 }

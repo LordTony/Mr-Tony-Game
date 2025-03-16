@@ -1,4 +1,5 @@
 import {
+	Actor,
 	Color,
 	EasingFunctions,
 	Engine,
@@ -8,16 +9,22 @@ import {
 	Scene,
 	SceneActivationContext,
 	TextAlign,
-	vec
+	vec,
+	Vector
 } from 'excalibur';
 import { Card } from './card';
 import { CardZone } from './card-zone';
+import { MoveObjectMessage, PlayZoneType } from './messages/move-object.message';
 import { PacketEventManager, PeerType } from './packet-event-manager';
+
+const z_desc_sorter = (a: Actor, b: Actor) => b.z - a.z;
 
 export class Level extends Scene {
 	packet_event_manager: PacketEventManager = new PacketEventManager();
 	card_dict: Record<number, Card> = {};
 	preview_card_zone = new CardZone(vec(20, 20));
+	dragged_card: Card | undefined | null;
+	dragged_card_offset: Vector = Vector.Zero;
 
 	labelFont = new Font({
 		size: 30,
@@ -61,7 +68,7 @@ export class Level extends Scene {
 				this.join_game_label.graphics.isVisible = false;
 				this.packet_event_manager.Connect('test-game', item.type).then((_connection) => {
 					for (let i = 0; i < 5; i++) {
-						const nextCard = new Card(this, vec(600 + i * 50, 300));
+						const nextCard = new Card(vec(600 + i * 50, 300));
 						this.card_dict[nextCard.id] = nextCard;
 						this.add(nextCard);
 					}
@@ -71,6 +78,8 @@ export class Level extends Scene {
 						const distanceToMove = cardToMove.pos.distance(
 							vec(event.target.x, event.target.y)
 						);
+
+						cardToMove.addToTopOfDrawStack();
 						cardToMove.actions.moveTo({
 							pos: vec(event.target.x, event.target.y),
 							duration: distanceToMove < 200 ? 300 : 500,
@@ -80,5 +89,53 @@ export class Level extends Scene {
 				});
 			});
 		});
+
+		this.initializeDraggingEvents();
+	}
+
+	private initializeDraggingEvents() {
+		const cursor = this.input.pointers.primary;
+		cursor.on('move', (evt) => {
+			if (this.dragged_card) {
+				this.dragged_card.pos = evt.worldPos.add(this.dragged_card_offset);
+			} else {
+				const hovered_card = this.getTopCardHoveredCardAtPoint(evt.worldPos);
+				this.preview_card_zone.setPreviewImage(hovered_card ? hovered_card.card_img : null);
+			}
+		});
+
+		cursor.on('down', (evt) => {
+			const top_clicked_card = this.getTopCardHoveredCardAtPoint(evt.worldPos);
+
+			if (top_clicked_card) {
+				this.dragged_card = top_clicked_card;
+				this.dragged_card_offset = this.dragged_card.pos.sub(evt.worldPos);
+
+				this.dragged_card.addToTopOfDrawStack();
+			}
+		});
+
+		cursor.on('up', () => {
+			if (this.dragged_card && this.packet_event_manager) {
+				const message = new MoveObjectMessage(
+					this.dragged_card.id,
+					PlayZoneType.Board,
+					this.dragged_card.pos.x,
+					this.dragged_card.pos.y
+				);
+
+				this.packet_event_manager.SendThrottledMoveObjectMessage(message);
+			}
+
+			this.dragged_card = null;
+		});
+	}
+
+	getTopCardHoveredCardAtPoint(point: Vector): Card | null {
+		const hovered_cards = this.actors
+			.filter((actor) => actor instanceof Card && actor.contains(point.x, point.y, false))
+			.toSorted(z_desc_sorter);
+
+		return hovered_cards.length > 0 ? (hovered_cards[0] as Card) : null;
 	}
 }

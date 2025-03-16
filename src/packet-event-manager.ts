@@ -4,6 +4,7 @@ import { throttle } from 'lodash-es';
 import { DataConnection, Peer } from 'peerjs';
 import { BasePacketMessage } from './messages/base-packet.message';
 import { MoveObjectMessage } from './messages/move-object.message';
+import { GetBitWidthMetadata } from './utils/parser-func.attribute';
 
 export enum PeerType {
 	Host,
@@ -48,9 +49,24 @@ export class PacketEventManager {
 		this._parser = new Parser().bit5('message_type').choice({
 			tag: 'message_type',
 			choices: {
-				[PacketMessageType.Move_Obj]: MoveObjectMessage.GetParser()
+				[PacketMessageType.Move_Obj]: PacketEventManager.CreateParser(MoveObjectMessage)
 			}
 		});
+	}
+
+	private static CreateParser(objectType: any): Parser {
+		const bitWidthMetaData = GetBitWidthMetadata(objectType);
+
+		let parser = new Parser();
+		Object.keys(bitWidthMetaData).forEach((propName) => {
+			if (propName in bitWidthMetaData) {
+				const parserFuncName = bitWidthMetaData[propName];
+				parser = (parser[parserFuncName] as Function)(propName);
+			} else {
+				alert(`could not find a parser size for property "${objectType}.${propName}"`);
+			}
+		});
+		return parser;
 	}
 
 	public async Connect(game_name: string, peer_type: PeerType): Promise<DataConnection> {
