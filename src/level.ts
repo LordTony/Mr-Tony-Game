@@ -5,6 +5,7 @@ import {
 	Engine,
 	Font,
 	Label,
+	Line,
 	Resolution,
 	Scene,
 	SceneActivationContext,
@@ -55,6 +56,53 @@ export class Level extends Scene {
 		this.add(this.join_game_label);
 
 		this.add(this.preview_card_zone);
+
+		const verticalLine = new Line({
+			color: Color.Black,
+			start: Vector.Zero,
+			end: vec(0, Resolution.Standard.height),
+			thickness: 2
+		});
+
+		const horizontalLine = new Line({
+			color: Color.Black,
+			start: Vector.Zero,
+			end: vec(Resolution.Standard.width, 0),
+			thickness: 2
+		});
+
+		const lineOpacity = 0.4;
+		const leftLine = new Actor({
+			pos: Vector.Zero,
+			anchor: Vector.Zero,
+			opacity: lineOpacity
+		});
+		leftLine.graphics.use(verticalLine);
+		this.add(leftLine);
+
+		const rightLine = new Actor({
+			pos: vec(Resolution.Standard.width, 0),
+			anchor: Vector.Zero,
+			opacity: lineOpacity
+		});
+		rightLine.graphics.use(verticalLine);
+		this.add(rightLine);
+
+		const topLine = new Actor({
+			pos: Vector.Zero,
+			anchor: Vector.Zero,
+			opacity: lineOpacity
+		});
+		topLine.graphics.use(horizontalLine);
+		this.add(topLine);
+
+		const bottomLine = new Actor({
+			pos: vec(0, Resolution.Standard.height),
+			anchor: Vector.Zero,
+			opacity: lineOpacity
+		});
+		bottomLine.graphics.use(horizontalLine);
+		this.add(bottomLine);
 
 		// Setup the buttons to create or join a game
 		// Then hook up the

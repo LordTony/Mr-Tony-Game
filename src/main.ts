@@ -6,8 +6,9 @@ const game = new Engine({
 	resolution: Resolution.Standard,
 	backgroundColor: Color.fromHex('#54C0CA'),
 	antialiasing: true,
-	displayMode: DisplayMode.FitScreen,
-	scenes: { Level }
+	displayMode: DisplayMode.FitContainerAndFill,
+	scenes: { Level },
+	canvasElementId: 'game'
 });
 
 const loader = new Loader(Object.values(Resources));
