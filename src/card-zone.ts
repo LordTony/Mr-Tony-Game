@@ -6,14 +6,13 @@ import {
 	NineSliceStretch,
 	Vector
 } from 'excalibur';
+import { GlobalConfig } from './game-config';
 import { Resources } from './resources';
-
-const card_aspect_ratio = 88 / 63;
 
 export class CardZone extends Actor {
 	private static zone_size = {
-		width: 500,
-		height: 500 * card_aspect_ratio
+		width: 450,
+		height: 450 * GlobalConfig.CardAspectRatio
 	};
 	private img_placeholder: NineSlice;
 	private current_card_image: ImageSource | undefined | null;

@@ -1,17 +1,19 @@
-import { Color, DisplayMode, Engine, Loader, Resolution } from 'excalibur';
-import { Level } from './level';
+import { Color, DisplayMode, Engine, Loader } from 'excalibur';
+import { GlobalConfig } from './game-config';
+import { PlayField } from './play-field';
 import { Resources } from './resources';
 
 const game = new Engine({
-	resolution: Resolution.Standard,
-	backgroundColor: Color.fromHex('#54C0CA'),
+	resolution: GlobalConfig.GameResolution,
+	backgroundColor: Color.fromHex(GlobalConfig.BackgroundColorHex),
 	antialiasing: true,
 	displayMode: DisplayMode.FitContainerAndFill,
-	scenes: { Level },
+	scenes: { PlayField },
 	canvasElementId: 'game'
 });
 
 const loader = new Loader(Object.values(Resources));
+loader.backgroundColor = GlobalConfig.BackgroundColorHex;
 game.start(loader).then(() => {
-	game.goToScene('Level');
+	game.goToScene('PlayField');
 });

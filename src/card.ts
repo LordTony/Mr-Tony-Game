@@ -1,8 +1,5 @@
 import { Actor, ImageSource, Random, Vector } from 'excalibur';
-
-const card_aspect_ratio = 88 / 63;
-const card_height = 150 * card_aspect_ratio;
-const card_width = 150;
+import { GlobalConfig } from './game-config';
 
 export class Card extends Actor {
 	private static top_of_draw_stack: number = 1;
@@ -13,8 +10,8 @@ export class Card extends Actor {
 	constructor(start_pos: Vector) {
 		super({
 			pos: start_pos,
-			height: card_height,
-			width: card_width
+			height: GlobalConfig.CardWidth * GlobalConfig.CardAspectRatio,
+			width: GlobalConfig.CardWidth
 		});
 		this.z = Card.top_of_draw_stack;
 		Card.top_of_draw_stack++;
@@ -36,8 +33,8 @@ export class Card extends Actor {
 		this.card_img.load().then(() => {
 			const sprite = (this.card_img as ImageSource).toSprite({
 				destSize: {
-					height: card_height,
-					width: card_width
+					height: GlobalConfig.CardWidth * GlobalConfig.CardAspectRatio,
+					width: GlobalConfig.CardWidth
 				}
 			});
 			this.graphics.use(sprite);
