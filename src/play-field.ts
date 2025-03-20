@@ -17,15 +17,21 @@ import { GlobalConfig } from './game-config';
 import { MoveObjectMessage, PlayZoneType } from './messages/move-object.message';
 import { PacketEventManager, PeerType } from './packet-event-manager';
 import { RectangleZone } from './rectangle-zone';
+import { remove } from 'lodash-es';
 
 const z_desc_sorter = (a: Actor, b: Actor) => b.z - a.z;
 
 export class PlayField extends Scene {
 	packet_event_manager: PacketEventManager = new PacketEventManager();
 	card_dict: Record<number, Card> = {};
+	cards_on_board: Set<Card> = new Set();
+	cards_in_player_hand: Card[] = [];
+	cards_in_opponent_hand: Card[] = [];
 	preview_card_zone = new CardZone(Vector.Zero);
 	dragged_card: Card | undefined | null;
 	dragged_card_offset: Vector = Vector.Zero;
+	top_hand_zone: RectangleZone;
+	bottom_hand_zone: RectangleZone;
 
 	labelFont = new Font({
 		size: 30,
@@ -93,6 +99,12 @@ export class PlayField extends Scene {
 		GlobalConfig.GameResolution.height / 2
 	);
 
+	constructor() {
+		super();
+		this.top_hand_zone = new RectangleZone(vec(GlobalConfig.GameResolution.width - GlobalConfig.CardWidth, 0), GlobalConfig.CardWidth, GlobalConfig.GameResolution.height / 2, "Opponent Hand")
+		this.bottom_hand_zone = new RectangleZone(vec(GlobalConfig.GameResolution.width - GlobalConfig.CardWidth, GlobalConfig.GameResolution.height / 2), GlobalConfig.CardWidth, GlobalConfig.GameResolution.height / 2, "Player Hand")
+	}
+
 	override onInitialize(_engine: Engine): void {
 		this.add(this.create_game_label);
 		this.add(this.join_game_label);
@@ -104,6 +116,8 @@ export class PlayField extends Scene {
 		this.add(this.top_zone);
 		this.add(this.bottom_zone);
 
+		this.add(this.top_hand_zone);
+		this.add(this.bottom_hand_zone);
 		// Setup the buttons to create or join a game
 		// Then hook up the
 		const items = [
@@ -156,6 +170,7 @@ export class PlayField extends Scene {
 			);
 			const nextCard = new Card(card_pos);
 			this.card_dict[nextCard.id] = nextCard;
+			this.cards_on_board.add(nextCard);
 			this.add(nextCard);
 		}
 	}
@@ -170,7 +185,7 @@ export class PlayField extends Scene {
 				const clampedPoint = vec(
 					clamp(
 						desiredPoint.x,
-						this.left_zone.width + half_card_width,
+						this.left_zone.collider.bounds.right + half_card_width,
 						GlobalConfig.GameResolution.width - half_card_width
 					),
 					clamp(
@@ -187,26 +202,35 @@ export class PlayField extends Scene {
 		});
 
 		cursor.on('down', (evt) => {
-			const top_clicked_card = this.getTopCardHoveredCardAtPoint(evt.worldPos);
+			const pt = evt.worldPos;
+			const top_clicked_card = this.getTopCardHoveredCardAtPoint(pt);
 
 			if (top_clicked_card) {
 				this.dragged_card = top_clicked_card;
-				this.dragged_card_offset = this.dragged_card.pos.sub(evt.worldPos);
+				this.dragged_card_offset = this.dragged_card.pos.sub(pt);
 
 				this.dragged_card.moveToTopOfDrawStack();
 			}
 		});
 
 		cursor.on('up', () => {
-			if (this.dragged_card && this.packet_event_manager) {
-				const message = new MoveObjectMessage(
-					this.dragged_card.id,
-					PlayZoneType.Board,
-					this.dragged_card.pos.x,
-					this.dragged_card.pos.y
-				);
-
-				this.packet_event_manager.SendThrottledMoveObjectMessage(message);
+			if (this.dragged_card) {
+				const pt = this.dragged_card.collider.bounds.bottomRight;
+				const dropped_in_hand_zone = this.bottom_hand_zone.contains(pt.x, pt.y, false) || this.top_hand_zone.contains(pt.x, pt.y, false)
+				if(dropped_in_hand_zone) {
+					this.addCardToHand(this.dragged_card);
+				} else {
+					this.remove_card_from_hand_if_its_there(this.dragged_card);
+					remove(this.cards_in_player_hand, this.dragged_card)
+					const message = new MoveObjectMessage(
+						this.dragged_card.id,
+						PlayZoneType.Board,
+						this.dragged_card.pos.x,
+						this.dragged_card.pos.y
+					);
+	
+					this.packet_event_manager.SendThrottledMoveObjectMessage(message);
+				}
 			}
 
 			this.dragged_card = null;
@@ -219,5 +243,47 @@ export class PlayField extends Scene {
 			.toSorted(z_desc_sorter);
 
 		return hovered_cards.length > 0 ? (hovered_cards[0] as Card) : null;
+	}
+
+	addCardToHand(card: Card) {
+		this.remove_card_from_hand_if_its_there(card)
+		this.cards_on_board.delete(card);
+
+		const hand_card_count = this.cards_in_player_hand.length;
+		const hand = this.bottom_hand_zone.collider.bounds;
+		const x_pos = hand.left + card.width / 2;
+		const y_pos = hand.top + (card.height / 2) + hand_card_count * 30
+
+		const position_in_hand = vec(x_pos, y_pos);
+		card.actions.moveTo({
+			pos: position_in_hand,
+			duration: 150,
+			easing: EasingFunctions.EaseOutCubic
+		})
+		this.cards_in_player_hand.push(card);
+	}
+
+	remove_card_from_hand_if_its_there(card: Card) {
+		const card_was_in_hand = this.cards_in_player_hand.includes(card)
+		if(!card_was_in_hand) {
+			return;
+		}
+
+		this.cards_on_board.add(card);
+		remove(this.cards_in_player_hand, card);
+
+		// adjust all cards that were in the hand
+		const hand = this.bottom_hand_zone.collider.bounds;
+		const x_pos = hand.left + card.width / 2;
+		const start_y = hand.top + (card.height / 2);
+		this.cards_in_player_hand.forEach((hand_card, adjusted_index) => {
+			const y_pos = start_y + adjusted_index * 30
+			const position_in_hand = vec(x_pos, y_pos);
+			hand_card.actions.moveTo({
+				pos: position_in_hand,
+				duration: 150,
+				easing: EasingFunctions.EaseOutCubic
+			})
+		})
 	}
 }
