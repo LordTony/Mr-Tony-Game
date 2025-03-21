@@ -6,13 +6,13 @@ import {
 	NineSliceStretch,
 	Vector
 } from 'excalibur';
-import { GlobalConfig } from './game-config';
+import { GameConfig } from './game-config';
 import { Resources } from './resources';
 
 export class CardZone extends Actor {
 	private static zone_size = {
-		width: 450,
-		height: 450 * GlobalConfig.CardAspectRatio
+		width: GameConfig.CardZoomViewWidth,
+		height: GameConfig.CardZoomViewWidth * GameConfig.CardAspectRatio
 	};
 	private img_placeholder: NineSlice;
 	private current_card_image: ImageSource | undefined | null;

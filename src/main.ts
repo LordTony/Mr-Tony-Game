@@ -1,20 +1,19 @@
 import { Color, DisplayMode, Engine, Loader, Vector } from 'excalibur';
-import { GlobalConfig } from './game-config';
-import { PlayField } from './play-field';
+import { GameConfig } from './game-config';
+import { PlayField } from './screens/play-field';
 import { Resources } from './resources';
 import { debounce } from 'lodash-es';
 
 const game = new Engine({
-	resolution: GlobalConfig.GameResolution,
-	backgroundColor: Color.fromHex(GlobalConfig.BackgroundColorHex),
-	antialiasing: true,
+	resolution: GameConfig.GameResolution,
+	backgroundColor: Color.fromHex(GameConfig.BackgroundColorHex),
 	displayMode: DisplayMode.FitContainerAndFill,
 	scenes: { PlayField },
 	canvasElementId: 'game'
 });
 
 const loader = new Loader(Object.values(Resources));
-loader.backgroundColor = GlobalConfig.BackgroundColorHex;
+loader.backgroundColor = GameConfig.BackgroundColorHex;
 game.start(loader).then(() => {
 	handleResizeDebounced();
 	game.goToScene('PlayField');

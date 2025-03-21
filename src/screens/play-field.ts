@@ -11,13 +11,13 @@ import {
 	vec,
 	Vector
 } from 'excalibur';
-import { Card } from './card';
-import { CardZone } from './card-zone';
-import { GlobalConfig } from './game-config';
-import { MoveObjectMessage, PlayZoneType } from './messages/move-object.message';
-import { PacketEventManager, PeerType } from './packet-event-manager';
-import { RectangleZone } from './rectangle-zone';
-import { remove } from 'lodash-es';
+import { Card } from '../card';
+import { CardZone } from '../card-zone';
+import { GameConfig } from '../game-config';
+import { MoveObjectMessage, PlayZoneType } from '../messages/move-object.message';
+import { PacketEventManager, PeerType } from '../packet-event-manager';
+import { RectangleZone } from '../rectangle-zone';
+import { remove, throttle } from 'lodash-es';
 
 const z_desc_sorter = (a: Actor, b: Actor) => b.z - a.z;
 
@@ -41,68 +41,68 @@ export class PlayField extends Scene {
 
 	create_game_label = new Label({
 		text: 'Create and Host Game',
-		x: GlobalConfig.GameResolution.width / 2,
-		y: GlobalConfig.GameResolution.height / 2 - 40,
+		x: GameConfig.GameResolution.width / 2,
+		y: GameConfig.GameResolution.height / 2 - 40,
 		z: 2,
 		font: this.labelFont
 	});
 
 	join_game_label = new Label({
 		text: 'Join Game',
-		x: GlobalConfig.GameResolution.width / 2,
-		y: GlobalConfig.GameResolution.height / 2,
+		x: GameConfig.GameResolution.width / 2,
+		y: GameConfig.GameResolution.height / 2,
 		z: 2,
 		font: this.labelFont
 	});
 
 	solo_game_label = new Label({
 		text: 'Solo Game',
-		x: GlobalConfig.GameResolution.width / 2,
-		y: GlobalConfig.GameResolution.height / 2 + 40,
+		x: GameConfig.GameResolution.width / 2,
+		y: GameConfig.GameResolution.height / 2 + 40,
 		z: 2,
 		font: this.labelFont
 	});
 
 	resolution_visualizer = new RectangleZone(
 		Vector.Zero,
-		GlobalConfig.GameResolution.width,
-		GlobalConfig.GameResolution.height
+		GameConfig.GameResolution.width,
+		GameConfig.GameResolution.height
 	);
 
-	left_zone = new RectangleZone(Vector.Zero, 450, GlobalConfig.GameResolution.height);
+	left_zone = new RectangleZone(Vector.Zero, GameConfig.CardZoomViewWidth, GameConfig.GameResolution.height);
 	top_zone = new RectangleZone(
 		vec(this.left_zone.width, 0),
-		GlobalConfig.GameResolution.width - this.left_zone.width,
-		GlobalConfig.GameResolution.height / 2
+		GameConfig.GameResolution.width - this.left_zone.width,
+		GameConfig.GameResolution.height / 2
 	);
 	bottom_zone = new RectangleZone(
-		vec(this.left_zone.width, GlobalConfig.GameResolution.height / 2),
-		GlobalConfig.GameResolution.width - this.left_zone.width,
-		GlobalConfig.GameResolution.height / 2
+		vec(this.left_zone.width, GameConfig.GameResolution.height / 2),
+		GameConfig.GameResolution.width - this.left_zone.width,
+		GameConfig.GameResolution.height / 2
 	);
 
 	top_deck_zone = new RectangleZone(
-		vec(this.left_zone.width, GlobalConfig.GameResolution.height / 2),
-		GlobalConfig.GameResolution.width - this.left_zone.width,
-		GlobalConfig.GameResolution.height / 2
+		vec(this.left_zone.width, GameConfig.GameResolution.height / 2),
+		GameConfig.GameResolution.width - this.left_zone.width,
+		GameConfig.GameResolution.height / 2
 	);
 
 	top_grave_zone = new RectangleZone(
-		vec(this.left_zone.width, GlobalConfig.GameResolution.height / 2),
-		GlobalConfig.GameResolution.width - this.left_zone.width,
-		GlobalConfig.GameResolution.height / 2
+		vec(this.left_zone.width, GameConfig.GameResolution.height / 2),
+		GameConfig.GameResolution.width - this.left_zone.width,
+		GameConfig.GameResolution.height / 2
 	);
 
 	top_exile_zone = new RectangleZone(
-		vec(this.left_zone.width, GlobalConfig.GameResolution.height / 2),
-		GlobalConfig.GameResolution.width - this.left_zone.width,
-		GlobalConfig.GameResolution.height / 2
+		vec(this.left_zone.width, GameConfig.GameResolution.height / 2),
+		GameConfig.GameResolution.width - this.left_zone.width,
+		GameConfig.GameResolution.height / 2
 	);
 
 	constructor() {
 		super();
-		this.top_hand_zone = new RectangleZone(vec(GlobalConfig.GameResolution.width - GlobalConfig.CardWidth, 0), GlobalConfig.CardWidth, GlobalConfig.GameResolution.height / 2, "Opponent Hand")
-		this.bottom_hand_zone = new RectangleZone(vec(GlobalConfig.GameResolution.width - GlobalConfig.CardWidth, GlobalConfig.GameResolution.height / 2), GlobalConfig.CardWidth, GlobalConfig.GameResolution.height / 2, "Player Hand")
+		this.top_hand_zone = new RectangleZone(vec(GameConfig.GameResolution.width - GameConfig.CardWidth, 0), GameConfig.CardWidth, GameConfig.GameResolution.height / 2, "Opponent Hand")
+		this.bottom_hand_zone = new RectangleZone(vec(GameConfig.GameResolution.width - GameConfig.CardWidth, GameConfig.GameResolution.height / 2), GameConfig.CardWidth, GameConfig.GameResolution.height / 2, "Player Hand")
 	}
 
 	override onInitialize(_engine: Engine): void {
@@ -175,6 +175,12 @@ export class PlayField extends Scene {
 		}
 	}
 
+	private printVec(mousePosition: Vector) {
+		console.log("MousePostition in World Space", mousePosition)
+	}
+
+	private throttledPrintVec = throttle(this.printVec, 200);
+
 	private initializeDraggingEvents() {
 		const cursor = this.input.pointers.primary;
 		cursor.on('move', (evt) => {
@@ -186,12 +192,12 @@ export class PlayField extends Scene {
 					clamp(
 						desiredPoint.x,
 						this.left_zone.collider.bounds.right + half_card_width,
-						GlobalConfig.GameResolution.width - half_card_width
+						GameConfig.GameResolution.width - half_card_width
 					),
 					clamp(
 						desiredPoint.y,
 						half_card_height,
-						GlobalConfig.GameResolution.height - half_card_height
+						GameConfig.GameResolution.height - half_card_height
 					)
 				);
 				this.dragged_card.pos = clampedPoint;
@@ -252,7 +258,7 @@ export class PlayField extends Scene {
 		const hand_card_count = this.cards_in_player_hand.length;
 		const hand = this.bottom_hand_zone.collider.bounds;
 		const x_pos = hand.left + card.width / 2;
-		const y_pos = hand.top + (card.height / 2) + hand_card_count * 30
+		const y_pos = hand.top + (card.height / 2) + hand_card_count * GameConfig.CardLabelBottomViewOffset
 
 		const position_in_hand = vec(x_pos, y_pos);
 		card.actions.moveTo({
@@ -277,7 +283,7 @@ export class PlayField extends Scene {
 		const x_pos = hand.left + card.width / 2;
 		const start_y = hand.top + (card.height / 2);
 		this.cards_in_player_hand.forEach((hand_card, adjusted_index) => {
-			const y_pos = start_y + adjusted_index * 30
+			const y_pos = start_y + adjusted_index * GameConfig.CardLabelBottomViewOffset
 			const position_in_hand = vec(x_pos, y_pos);
 			hand_card.actions.moveTo({
 				pos: position_in_hand,

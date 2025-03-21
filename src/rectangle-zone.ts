@@ -1,16 +1,10 @@
-import { Actor, Color, Direction, Font, Label, Line, Rectangle, TextAlign, vec, Vector } from 'excalibur';
+import { Actor, Color, Entity, ImageSource, Line, vec, Vector } from 'excalibur';
+import { HtmlDomActor } from './dom-actor';
+import { Create_Sprite_From_HtmlElement_Async } from './utils/dom-img-src';
+import { GameConfig } from './game-config';
 
 export class RectangleZone extends Actor {
-	private static label_font: Font;
 
-	static {
-		RectangleZone.label_font = new Font({
-			size: 30,
-			color: Color.White,
-			textAlign: TextAlign.Center,
-			family: "Comic Sans MS"
-		});
-	}
 	constructor(start_pos: Vector, width: number, height: number, public label?: string) {
 		super({
 			pos: start_pos,
@@ -59,6 +53,7 @@ export class RectangleZone extends Actor {
 			opacity: lineOpacity
 		});
 		topLine.graphics.use(horizontalLine);
+
 		this.addChild(topLine);
 
 		const bottomLine = new Actor({
@@ -70,16 +65,26 @@ export class RectangleZone extends Actor {
 		this.addChild(bottomLine);
 
 		if(this.label) {
-			const test = document.createElement("span");
-			test.textContent = this.label;
-			test.className = 'vertical-label';
-			document.getElementById("ui")?.append(test);
 
-			const itemWidth = test.clientWidth;
-			const itemHeight = test.clientHeight;
+			const elem = document.createElement('div');
+			elem.append(this.label);
+			elem.style.borderRadius = "10px";
+			elem.style.backgroundColor = "darkslateblue";
+			elem.style.boxShadow = "2px grey";
+			elem.style.color = "white";
+			elem.style.writingMode = "vertical-lr";
+			elem.style.textOrientation = "upright";
+			elem.style.fontSize = "30px";
+			elem.style.whiteSpace = "nowrap";
+			elem.style.padding = "15px";
 
-			test.style.left = `${this.pos.x + this.width / 2 - itemWidth / 2}px`;
-			test.style.top = `${this.pos.y + this.height / 2 - itemHeight / 2}px`;
+			Create_Sprite_From_HtmlElement_Async(elem, vec(100, GameConfig.GameResolution.height / 2)).then(sprite => {
+				const test_label = new Actor({
+					pos: vec(this.width / 2, this.height / 2)
+				})
+				test_label.graphics.use(sprite);
+				this.addChild(test_label);
+			})
 		}
 	}
 }
