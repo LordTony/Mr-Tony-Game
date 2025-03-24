@@ -1,14 +1,15 @@
 import { Color, DisplayMode, Engine, Loader, Vector } from 'excalibur';
-import { GameConfig } from './game-config';
-import { PlayField } from './screens/play-field';
-import { Resources } from './resources';
 import { debounce } from 'lodash-es';
+import { GameConfig } from './game-config';
+import { Resources } from './resources';
+import { PlayField } from './screens/play-field';
+import { StartMenu } from './screens/start-menu';
 
 const game = new Engine({
 	resolution: GameConfig.GameResolution,
 	backgroundColor: Color.fromHex(GameConfig.BackgroundColorHex),
 	displayMode: DisplayMode.FitContainerAndFill,
-	scenes: { PlayField },
+	scenes: { StartMenu, PlayField },
 	canvasElementId: 'game'
 });
 
@@ -16,7 +17,7 @@ const loader = new Loader(Object.values(Resources));
 loader.backgroundColor = GameConfig.BackgroundColorHex;
 game.start(loader).then(() => {
 	handleResizeDebounced();
-	game.goToScene('PlayField');
+	game.goToScene('StartMenu');
 });
 
 function handleResize() {
@@ -26,8 +27,8 @@ function handleResize() {
 	rootStyle.setProperty('--screen-top-left-y', pagePositionFromScreen.y + 'px');
 }
 
-const handleResizeDebounced = debounce(handleResize, 100)
+const handleResizeDebounced = debounce(handleResize, 150);
 
 game.screen.events.on('resize', () => {
-	handleResizeDebounced()
-})
+	handleResizeDebounced();
+});
