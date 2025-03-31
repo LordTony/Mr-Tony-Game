@@ -1,5 +1,5 @@
 import { Actor, ImageSource, Vector } from 'excalibur';
-import { GameConfig } from './game-config';
+import { Config } from './config';
 
 export class Card extends Actor {
 	private static top_of_draw_stack: number = 1;
@@ -9,8 +9,8 @@ export class Card extends Actor {
 	constructor(loaded_img_source: ImageSource, pos: Vector) {
 		super({
 			pos: pos,
-			height: GameConfig.CardWidth * GameConfig.CardAspectRatio,
-			width: GameConfig.CardWidth
+			height: Config.CardWidth * Config.CardAspectRatio,
+			width: Config.CardWidth
 		});
 		this.z = Card.top_of_draw_stack;
 		this.img_src = loaded_img_source;
@@ -20,8 +20,8 @@ export class Card extends Actor {
 	override onInitialize(): void {
 		const sprite = this.img_src.toSprite({
 			destSize: {
-				height: GameConfig.CardWidth * GameConfig.CardAspectRatio,
-				width: GameConfig.CardWidth
+				height: Config.CardWidth * Config.CardAspectRatio,
+				width: Config.CardWidth
 			}
 		});
 		this.graphics.use(sprite);

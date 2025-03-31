@@ -1,5 +1,5 @@
 import { Actor, Color, Line, vec, Vector } from 'excalibur';
-import { GameConfig } from './game-config';
+import { Config } from './config';
 import { Create_Sprite_From_HtmlElement_Async } from './utils/dom-img-src';
 
 export class RectangleZone extends Actor {
@@ -82,7 +82,7 @@ export class RectangleZone extends Actor {
 
 			Create_Sprite_From_HtmlElement_Async(
 				elem,
-				vec(100, GameConfig.GameResolution.height / 2)
+				vec(100, Config.GameResolution.height / 2)
 			).then((sprite) => {
 				const test_label = new Actor({
 					pos: vec(this.width / 2, this.height / 2)

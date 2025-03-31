@@ -1,5 +1,5 @@
 import { Engine, Label, Scene, Slide } from 'excalibur';
-import { GameConfig } from '../game-config';
+import { Config } from '../config';
 
 export class StartMenu extends Scene {
 	solo_game_label: Label;
@@ -9,10 +9,10 @@ export class StartMenu extends Scene {
 
 		this.solo_game_label = new Label({
 			text: 'Solo Game',
-			x: GameConfig.GameResolution.width / 2,
-			y: GameConfig.GameResolution.height / 2 + 40,
+			x: Config.GameResolution.width / 2,
+			y: Config.GameResolution.height / 2 + 40,
 			z: 2,
-			font: GameConfig.GameButtonFont
+			font: Config.GameButtonFont
 		});
 	}
 

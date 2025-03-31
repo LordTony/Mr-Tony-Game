@@ -12,10 +12,7 @@
   },
   "repository": {},
   "keywords": [
-    "excalibur",
-    "excaliburjs",
-    "vite",
-    "game-engine"
+    "vite"
   ],
   "author": "",
   "license": "",
@@ -23,17 +20,19 @@
   "homepage": "",
   "dependencies": {
     "binary-parser-encoder": "^1.5.3",
-    "excalibur": "0.30.3",
     "lodash-es": "^4.17.21",
-    "peerjs": "^1.5.4"
+    "peerjs": "^1.5.4",
+    "three": "^0.175.0"
   },
   "devDependencies": {
     "@types/lodash-es": "^4.17.12",
+    "@types/three": "^0.175.0",
     "prettier": "^3.5.3",
     "prettier-plugin-organize-imports": "^4.1.0",
     "sass-embedded": "^1.85.1",
     "typescript": "5.8.2",
     "vite": "6.2.1",
+    "vite-plugin-glsl": "^1.4.0",
     "vite-plugin-node-polyfills": "^0.23.0"
   }
 }
