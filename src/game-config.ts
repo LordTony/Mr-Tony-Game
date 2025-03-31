@@ -10,6 +10,7 @@ export const GameConfig = {
 	CardWidth: 150,
 	CardZoomViewWidth: 300,
 	CardLabelBottomViewOffset: 20,
+	DeckZoneWidth: 125,
 	GameButtonFont: new Font({
 		size: 30,
 		color: Color.White,

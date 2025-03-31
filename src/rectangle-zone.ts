@@ -1,17 +1,20 @@
-import { Actor, Color, Entity, ImageSource, Line, vec, Vector } from 'excalibur';
-import { HtmlDomActor } from './dom-actor';
-import { Create_Sprite_From_HtmlElement_Async } from './utils/dom-img-src';
+import { Actor, Color, Line, vec, Vector } from 'excalibur';
 import { GameConfig } from './game-config';
+import { Create_Sprite_From_HtmlElement_Async } from './utils/dom-img-src';
 
 export class RectangleZone extends Actor {
-
-	constructor(start_pos: Vector, width: number, height: number, public label?: string) {
+	constructor(
+		start_pos: Vector,
+		width: number,
+		height: number,
+		public label?: string
+	) {
 		super({
 			pos: start_pos,
 			width: width,
 			height: height,
 			anchor: Vector.Zero,
-			z: -1,
+			z: -1
 		});
 	}
 
@@ -64,27 +67,29 @@ export class RectangleZone extends Actor {
 		bottomLine.graphics.use(horizontalLine);
 		this.addChild(bottomLine);
 
-		if(this.label) {
-
+		if (this.label) {
 			const elem = document.createElement('div');
 			elem.append(this.label);
-			elem.style.borderRadius = "10px";
-			elem.style.backgroundColor = "darkslateblue";
-			elem.style.boxShadow = "2px grey";
-			elem.style.color = "white";
-			elem.style.writingMode = "vertical-lr";
-			elem.style.textOrientation = "upright";
-			elem.style.fontSize = "30px";
-			elem.style.whiteSpace = "nowrap";
-			elem.style.padding = "15px";
+			elem.style.borderRadius = '10px';
+			elem.style.backgroundColor = 'darkslateblue';
+			elem.style.boxShadow = '2px grey';
+			elem.style.color = 'white';
+			elem.style.writingMode = 'vertical-lr';
+			elem.style.textOrientation = 'upright';
+			elem.style.fontSize = '25px';
+			elem.style.whiteSpace = 'nowrap';
+			elem.style.padding = '15px';
 
-			Create_Sprite_From_HtmlElement_Async(elem, vec(100, GameConfig.GameResolution.height / 2)).then(sprite => {
+			Create_Sprite_From_HtmlElement_Async(
+				elem,
+				vec(100, GameConfig.GameResolution.height / 2)
+			).then((sprite) => {
 				const test_label = new Actor({
 					pos: vec(this.width / 2, this.height / 2)
-				})
+				});
 				test_label.graphics.use(sprite);
 				this.addChild(test_label);
-			})
+			});
 		}
 	}
 }

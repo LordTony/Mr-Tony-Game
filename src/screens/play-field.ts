@@ -29,8 +29,6 @@ export class PlayField extends Scene {
 	preview_card_zone = new CardZone(Vector.Zero);
 	dragged_card: Card | undefined | null;
 	dragged_card_offset: Vector = Vector.Zero;
-	top_hand_zone: RectangleZone;
-	bottom_hand_zone: RectangleZone;
 
 	database: DB = new DB();
 
@@ -69,52 +67,89 @@ export class PlayField extends Scene {
 		GameConfig.CardZoomViewWidth,
 		GameConfig.GameResolution.height
 	);
+
 	top_zone = new RectangleZone(
 		vec(this.left_zone.width, 0),
 		GameConfig.GameResolution.width - this.left_zone.width,
 		GameConfig.GameResolution.height / 2
 	);
+
 	bottom_zone = new RectangleZone(
 		vec(this.left_zone.width, GameConfig.GameResolution.height / 2),
 		GameConfig.GameResolution.width - this.left_zone.width,
 		GameConfig.GameResolution.height / 2
 	);
 
-	top_deck_zone = new RectangleZone(
-		vec(this.left_zone.width, GameConfig.GameResolution.height / 2),
-		GameConfig.GameResolution.width - this.left_zone.width,
-		GameConfig.GameResolution.height / 2
+	top_hand_zone = new RectangleZone(
+		vec(GameConfig.GameResolution.width - GameConfig.CardWidth, 0),
+		GameConfig.CardWidth,
+		GameConfig.GameResolution.height / 2,
+		'Opponent Hand'
 	);
 
-	top_grave_zone = new RectangleZone(
-		vec(this.left_zone.width, GameConfig.GameResolution.height / 2),
-		GameConfig.GameResolution.width - this.left_zone.width,
-		GameConfig.GameResolution.height / 2
+	bottom_hand_zone = new RectangleZone(
+		vec(
+			GameConfig.GameResolution.width - GameConfig.CardWidth,
+			GameConfig.GameResolution.height / 2
+		),
+		GameConfig.CardWidth,
+		GameConfig.GameResolution.height / 2,
+		'Player Hand'
 	);
 
-	top_exile_zone = new RectangleZone(
-		vec(this.left_zone.width, GameConfig.GameResolution.height / 2),
-		GameConfig.GameResolution.width - this.left_zone.width,
-		GameConfig.GameResolution.height / 2
+	opponent_exile_zone = new RectangleZone(
+		vec(this.top_hand_zone.collider.bounds.left - GameConfig.DeckZoneWidth, 0),
+		GameConfig.DeckZoneWidth,
+		GameConfig.DeckZoneWidth * GameConfig.CardAspectRatio,
+		'Exile'
+	);
+
+	opponent_grave_zone = new RectangleZone(
+		vec(this.opponent_exile_zone.collider.bounds.left - GameConfig.DeckZoneWidth, 0),
+		GameConfig.DeckZoneWidth,
+		GameConfig.DeckZoneWidth * GameConfig.CardAspectRatio,
+		'Grave'
+	);
+
+	opponent_deck_zone = new RectangleZone(
+		vec(this.opponent_grave_zone.collider.bounds.left - GameConfig.DeckZoneWidth, 0),
+		GameConfig.DeckZoneWidth,
+		GameConfig.DeckZoneWidth * GameConfig.CardAspectRatio,
+		'Deck'
+	);
+
+	exile_zone = new RectangleZone(
+		vec(
+			this.top_hand_zone.collider.bounds.left - GameConfig.DeckZoneWidth,
+			GameConfig.GameResolution.height - GameConfig.DeckZoneWidth * GameConfig.CardAspectRatio
+		),
+		GameConfig.DeckZoneWidth,
+		GameConfig.DeckZoneWidth * GameConfig.CardAspectRatio,
+		'Exile'
+	);
+
+	grave_zone = new RectangleZone(
+		vec(
+			this.opponent_exile_zone.collider.bounds.left - GameConfig.DeckZoneWidth,
+			GameConfig.GameResolution.height - GameConfig.DeckZoneWidth * GameConfig.CardAspectRatio
+		),
+		GameConfig.DeckZoneWidth,
+		GameConfig.DeckZoneWidth * GameConfig.CardAspectRatio,
+		'Grave'
+	);
+
+	deck_zone = new RectangleZone(
+		vec(
+			this.opponent_grave_zone.collider.bounds.left - GameConfig.DeckZoneWidth,
+			GameConfig.GameResolution.height - GameConfig.DeckZoneWidth * GameConfig.CardAspectRatio
+		),
+		GameConfig.DeckZoneWidth,
+		GameConfig.DeckZoneWidth * GameConfig.CardAspectRatio,
+		'Deck'
 	);
 
 	constructor() {
 		super();
-		this.top_hand_zone = new RectangleZone(
-			vec(GameConfig.GameResolution.width - GameConfig.CardWidth, 0),
-			GameConfig.CardWidth,
-			GameConfig.GameResolution.height / 2,
-			'Opponent Hand'
-		);
-		this.bottom_hand_zone = new RectangleZone(
-			vec(
-				GameConfig.GameResolution.width - GameConfig.CardWidth,
-				GameConfig.GameResolution.height / 2
-			),
-			GameConfig.CardWidth,
-			GameConfig.GameResolution.height / 2,
-			'Player Hand'
-		);
 	}
 
 	override onInitialize(_engine: Engine): void {
@@ -130,6 +165,14 @@ export class PlayField extends Scene {
 
 		this.add(this.top_hand_zone);
 		this.add(this.bottom_hand_zone);
+
+		this.add(this.opponent_deck_zone);
+		this.add(this.opponent_grave_zone);
+		this.add(this.opponent_exile_zone);
+
+		this.add(this.deck_zone);
+		this.add(this.grave_zone);
+		this.add(this.exile_zone);
 
 		this.database.init().then(() => {
 			// Setup the buttons to create or join a game
@@ -180,7 +223,7 @@ export class PlayField extends Scene {
 		const load_promises = deck.cards.map(
 			(card) =>
 				new Promise((resolve, _reject) => {
-					const object_url = URL.createObjectURL(card.blob);
+					const object_url = URL.createObjectURL(card.front_blob);
 					const img_src = new ImageSource(object_url);
 					img_src.load().then(() => {
 						resolve({ count: card.count, src: img_src });
@@ -193,7 +236,7 @@ export class PlayField extends Scene {
 		for (let i = 0; i < img_srcs.length; i++) {
 			for (let j = 0; j < img_srcs[i].count; j++) {
 				const card_pos = vec(
-					this.bottom_zone.pos.x + 100 + i * (GameConfig.CardWidth + 5),
+					this.bottom_zone.pos.x + GameConfig.CardWidth / 2 + i * (GameConfig.CardWidth + 5),
 					this.bottom_zone.pos.y + 150 + j * GameConfig.CardLabelBottomViewOffset
 				);
 				const nextCard = new Card(img_srcs[i].src, card_pos);

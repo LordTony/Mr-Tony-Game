@@ -108,9 +108,8 @@ export class PacketEventManager {
 		const parsedMessage: BasePacketMessage = this._parser.parse(arrayMessage);
 		switch (parsedMessage.message_type) {
 			case PacketMessageType.Move_Obj:
-				const move_obj: keyof PacketEvents = 'move_obj';
 				const event = new MoveObjectEvent(parsedMessage as MoveObjectMessage);
-				this.Events.emit(move_obj, event);
+				this.Events.emit('move_obj', event);
 				return;
 			default:
 				console.log("Couldn't read message", parsedMessage);

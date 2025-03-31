@@ -21,8 +21,7 @@ export class StartMenu extends Scene {
 
 		this.solo_game_label.events.on('pointerdown', () => {
 			this.engine.goToScene('PlayField', {
-				destinationIn: new Slide({ slideDirection: 'left', duration: 1000 }),
-				sourceOut: new Slide({ slideDirection: 'left', duration: 1000 })
+				destinationIn: new Slide({ slideDirection: 'left', duration: 1000 })
 			});
 		});
 	}
