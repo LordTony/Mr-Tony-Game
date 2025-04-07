@@ -15,8 +15,7 @@ const renderer = new THREE.WebGLRenderer({
 	precision: 'highp'
 });
 
-const controls = new OrbitControls( camera, renderer.domElement );
-
+const controls = new OrbitControls(camera, renderer.domElement);
 
 const bg = new THREE.Color()
 const c1 = new THREE.Color(THREE.Color.NAMES.blue);
