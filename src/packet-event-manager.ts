@@ -1,5 +1,4 @@
 import { Parser } from 'binary-parser-encoder';
-import { EventEmitter, GameEvent } from 'excalibur';
 import { throttle } from 'lodash-es';
 import { DataConnection, Peer } from 'peerjs';
 import { BasePacketMessage } from './messages/base-packet.message';

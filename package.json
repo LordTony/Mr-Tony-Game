@@ -19,12 +19,16 @@
   "bugs": {},
   "homepage": "",
   "dependencies": {
+    "@tweenjs/tween.js": "^25.0.0",
     "binary-parser-encoder": "^1.5.3",
+    "dat.gui": "^0.7.9",
     "lodash-es": "^4.17.21",
     "peerjs": "^1.5.4",
+    "stats.js": "^0.17.0",
     "three": "^0.175.0"
   },
   "devDependencies": {
+    "@types/dat.gui": "^0.7.13",
     "@types/lodash-es": "^4.17.12",
     "@types/three": "^0.175.0",
     "prettier": "^3.5.3",
