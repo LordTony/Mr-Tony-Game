@@ -2,161 +2,130 @@ import { Vector3 } from 'three';
 import { Config } from './config';
 import { Easing, Tween } from '@tweenjs/tween.js';
 import * as THREE from 'three'
-import { AddZOffsetToExistingMaterial, GenerateDepthMaterialWithZOffset, GenerateDistanceMaterialWithZOffset } from './utils/shader-generators';
 
-// Custom UV generator for ExtrudeGeometry
-const uvGenerator: THREE.UVGenerator = {
-	generateTopUV: function (_geometry, vertices, indexA, indexB, indexC) {
-		// Extract vertex coordinates from the flat vertices array
-		const ax = vertices[indexA * 3];
-		const ay = vertices[indexA * 3 + 1];
-		const bx = vertices[indexB * 3];
-		const by = vertices[indexB * 3 + 1];
-		const cx = vertices[indexC * 3];
-		const cy = vertices[indexC * 3 + 1];
-	
-		const height = Config.CardWidth * Config.CardAspectRatio;
-		// Normalize to [0, 1] based on the card dimensions (assuming the card is centered at 0)
-		const uva = new THREE.Vector2((ax + Config.CardWidth / 2) / Config.CardWidth, (ay + height / 2) / height);
-		const uvb = new THREE.Vector2((bx + Config.CardWidth / 2) / Config.CardWidth, (by + height / 2) / height);
-		const uvc = new THREE.Vector2((cx + Config.CardWidth / 2) / Config.CardWidth, (cy + height / 2) / height);
-
-		return [uva, uvb, uvc];
-	},
-  
-	generateSideWallUV: function () {
-	  // This simple example maps each side wall face to a full texture square.
-	  // You can adjust this logic to better match BoxGeometry's side UV mapping.
-	  const uvA = new THREE.Vector2(0, 0);
-	  const uvB = new THREE.Vector2(1, 0);
-	  const uvC = new THREE.Vector2(1, 1);
-	  const uvD = new THREE.Vector2(0, 1);
-	  return [uvA, uvB, uvC, uvD];
-	}
-  };
+const card_material_defaults = {
+	shininess: 20,
+	reflectivity: 10
+} as const
 
 export class Card extends THREE.Mesh {
+	// public
 	public isTapped: boolean = false;
 	public isBeingDragged: boolean = false;
 	public isFlipped: boolean = false;
 	public card_front: THREE.Material;
+	public card_back: THREE.Material;
+
+	// private
 	private tap_animation: Tween | null = null;
 	private pick_up_animation: Tween | null = null;
 	private flip_animation: Tween | null = null; 
 	private drag_lift = { value: 0 };
 	private flip_lift = { value: 0 };
-	private z_displacement = { value: 0 }; // this is a magic inform
+	private z_displacement = { value: 0 }; // this is a magic uniform
+	//private borderMesh: THREE.Mesh | null = null;
 
-	public static card_layer = 52;
+	// public static
+	public static card_layer = 4;
 	public static url_to_material_cache = new Map<string, THREE.Material>();
-
-	private static geometry: THREE.ExtrudeGeometry;
-	private static side_material = new THREE.MeshPhongMaterial({ 
-		color: new THREE.Color('#121105'),
-		transparent: true,
-		shininess: 20,
-		reflectivity: 10
-	});
 	public static all_cards: Card[] = [];
 	public static top_card_z_offset: number = 0;
 
+	// private static
+	private static geometry: THREE.ShapeGeometry;
+	
 	static {
 		// Card dimensions and rounding radius
-		const width = Config.CardWidth;
-		const height = Config.CardWidth * Config.CardAspectRatio;
+		const h_width = Config.CardWidth / 2;
+		const h_height = h_width * Config.CardAspectRatio;
 		const thickness = Config.CardWidth * Config.CardThicknessRatio;
-		const radius = 0.02; // Rounded corner radius
+		const r = 0.03; // Rounded corner radius
 
 		const shape = new THREE.Shape();
-		shape.moveTo(-width / 2 + radius, -height / 2);
-		shape.lineTo(width / 2 - radius, -height / 2);
-		shape.absarc(width / 2 - radius, -height / 2 + radius, radius, -Math.PI / 2, 0, false);
-		shape.lineTo(width / 2, height / 2 - radius);
-		shape.absarc(width / 2 - radius, height / 2 - radius, radius, 0, Math.PI / 2, false);
-		shape.lineTo(-width / 2 + radius, height / 2);
-		shape.absarc(-width / 2 + radius, height / 2 - radius, radius, Math.PI / 2, Math.PI, false);
-		shape.lineTo(-width / 2, -height / 2 + radius);
-		shape.absarc(-width / 2 + radius, -height / 2 + radius, radius, Math.PI, 1.5 * Math.PI, false);
-		
-		const extrudeSettings: THREE.ExtrudeGeometryOptions = {
-			depth: thickness,
-			bevelOffset: 0,
-			bevelSize: 0,
-			bevelThickness: 0,
-			bevelSegments: 1,
-			steps: 1,
-			UVGenerator: uvGenerator
-		};
-		  
-		// Create the geometry by extruding the 2D shape
-		Card.geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-		const normalAttr = Card.geometry.attributes.normal;
-		const posAttr = Card.geometry.attributes.position;
-		const triangleCount = posAttr.count / 3;
-		
-		Card.geometry.clearGroups();
-		
-		for (let i = 0; i < triangleCount; i++) {
-		  const aIndex = i * 3;
-		  const bIndex = aIndex + 1;
-		  const cIndex = aIndex + 2;
-		
-		  // Get normals from the normal attribute for each vertex
-		  const na = new THREE.Vector3(
-			normalAttr.getX(aIndex),
-			normalAttr.getY(aIndex),
-			normalAttr.getZ(aIndex)
-		  );
-		  const nb = new THREE.Vector3(
-			normalAttr.getX(bIndex),
-			normalAttr.getY(bIndex),
-			normalAttr.getZ(bIndex)
-		  );
-		  const nc = new THREE.Vector3(
-			normalAttr.getX(cIndex),
-			normalAttr.getY(cIndex),
-			normalAttr.getZ(cIndex)
-		  );
-		
-		  // Average the normals
-		  const avgNormal = new THREE.Vector3()
-			.add(na)
-			.add(nb)
-			.add(nc)
-			.divideScalar(3);
-		
-		  let materialIndex: number;
-		  // If the average normal is strongly vertical, treat it as a cap.
-		  // Use a threshold—here 0.7 works reasonably well, but you may need to tweak it.
-		  if (Math.abs(avgNormal.z) > 0.7) {
-			materialIndex = avgNormal.z > 0 ? 0 : 1;
-		  } else {
-			// Side
-			materialIndex = 2;
-		  }
-		
-		  // Assign this triangle to the appropriate material group.
-		  Card.geometry.addGroup(aIndex, 3, materialIndex);
+		shape.moveTo(-h_width + r, -h_height);
+		shape.lineTo( h_width - r, -h_height);
+		shape.absarc( h_width - r, -h_height + r, r, -Math.PI / 2, 0            , false);
+		shape.lineTo( h_width    ,  h_height - r);
+		shape.absarc( h_width - r,  h_height - r, r, 0           , Math.PI / 2  , false);
+		shape.lineTo(-h_width + r,  h_height);
+		shape.absarc(-h_width + r,  h_height - r, r, Math.PI / 2 , Math.PI      , false);
+		shape.lineTo(-h_width    , -h_height + r);
+		shape.absarc(-h_width + r, -h_height + r, r, Math.PI     , 1.5 * Math.PI, false);
+
+		Card.geometry = new THREE.ShapeGeometry(shape, 1);
+		Card.geometry.center();
+
+		// ensure the geometry has a current bounding box
+		Card.geometry.computeBoundingBox();
+		const bb   = Card.geometry.boundingBox!;
+		const minX = bb.min.x;
+		const maxX = bb.max.x;
+		const minY = bb.min.y;
+		const maxY = bb.max.y;
+
+		const pos  = Card.geometry.attributes.position;
+		const count = pos.count;
+		const uvs  = new Float32Array(2 * count);
+
+		for (let i = 0; i < count; i++) {
+			const x = pos.getX(i);
+			const y = pos.getY(i);
+			uvs[2*i]   = (x - minX) / (maxX - minX);
+			uvs[2*i+1] = (y - minY) / (maxY - minY);
 		}
+
+		Card.geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
 	}
 
-	private constructor(start_position: Vector3, card_front: THREE.Material, card_back: THREE.Material) {
-		const clone_front = card_front.clone();
-		const clone_back = card_back.clone();
-		const clone_side = Card.side_material.clone()
-		const zOffsetUniform = { value: 0 };
-		const cloneMaterials = [clone_front, clone_back, clone_side].map(mat => {
-			AddZOffsetToExistingMaterial(mat, zOffsetUniform);
-			return mat;
-		})
-		super(Card.geometry, cloneMaterials);
-		this.customDepthMaterial = GenerateDepthMaterialWithZOffset(zOffsetUniform);
-		this.customDistanceMaterial = GenerateDistanceMaterialWithZOffset(zOffsetUniform);
-		this.z_displacement = zOffsetUniform;
-		this.card_front = clone_front;
-		this.geometry.center();
-		this.position.copy(start_position);
+	private constructor(start_position: Vector3, card_front: THREE.MeshPhongMaterial, card_back: THREE.MeshPhongMaterial) {
+		const card_front_clone = card_front.clone();
+		const card_back_clone = card_front.clone();
+		card_front_clone.side = THREE.DoubleSide;
+
+		card_front_clone.onBeforeCompile = ( shader ) => {
+			shader.uniforms.mapBack = { value: card_back.map?.clone() };
+
+			shader.fragmentShader = shader.fragmentShader.replace(
+				`#include <common>`,
+				`
+					#include <common>
+					#ifdef USE_MAP
+						uniform sampler2D mapBack;
+					#endif
+				`
+				);
+
+			shader.fragmentShader = shader.fragmentShader.replace(
+			`#include <map_fragment>`,
+			`
+				#ifdef USE_MAP
+					vec4 frontColor = texture2D( map, vMapUv );
+					vec2 mirroredUv = vec2(1.0 - vMapUv.x, vMapUv.y);
+					vec4 backColor  = texture2D( mapBack, mirroredUv );
+					vec4 sampledDiffuseColor = gl_FrontFacing ? frontColor : backColor;
+					#ifdef DECODE_VIDEO_TEXTURE
+						sampledDiffuseColor = sRGBTransferEOTF( sampledDiffuseColor );
+					#endif
+					diffuseColor *= sampledDiffuseColor;
+				#endif
+			`
+			);
+		};
+
+		super(Card.geometry, card_front_clone);
+		this.card_front = card_front_clone;
+		this.card_back = card_back_clone;
 		this.layers.enable(Card.card_layer);
+		this.position.copy(start_position);
+		this.z_displacement = { value: 0 };
+		this.castShadow = false;
+		this.receiveShadow = true;
+		const updateMatrixWorld_unmodified = this.updateMatrixWorld;
+
+		this.updateMatrixWorld = function (force) {
+			updateMatrixWorld_unmodified.call(this, force);
+			this.matrixWorld.elements[14] += this.z_displacement.value;
+		};
 	}
 
 	public static async CreateCardAsync(
@@ -173,11 +142,9 @@ export class Card extends THREE.Mesh {
 		if(!this.url_to_material_cache.has(front_key)) {
 			const material = new THREE.MeshPhongMaterial({ 
 				map: await loader.loadAsync(front_key),
-				shininess: 20,
-				reflectivity: 10
+				...card_material_defaults
 			});
 			material.map!.colorSpace = THREE.SRGBColorSpace;
-			material.map!.center.set(1,1)
 			Card.url_to_material_cache.set(front_key, material)
 		}
 
@@ -185,19 +152,16 @@ export class Card extends THREE.Mesh {
 		if(!this.url_to_material_cache.has(back_key)) {
 			const backTexture = await loader.loadAsync(back_key);
 			backTexture.colorSpace = THREE.SRGBColorSpace;
-			backTexture.repeat.x = -1;
-			backTexture.offset.x = 1;
 			const material = new THREE.MeshPhongMaterial({ 
 				map: backTexture,
-				shininess: 20,
-				reflectivity: 10,
+				...card_material_defaults
 			});
 			Card.url_to_material_cache.set(back_key, material)
 		}
 
-		const returnMe = new Card(start_position, Card.url_to_material_cache.get(front_key) as THREE.Material, Card.url_to_material_cache.get(back_key) as THREE.Material)
-		returnMe.castShadow = true;
-		returnMe.receiveShadow = true;
+		const cache_front = Card.url_to_material_cache.get(front_key) as THREE.MeshPhongMaterial;
+		const cache_back = Card.url_to_material_cache.get(back_key) as THREE.MeshPhongMaterial;
+		const returnMe = new Card(start_position, cache_front, cache_back)
 		Card.all_cards.push(returnMe);
 		return returnMe;
 	}
@@ -249,7 +213,7 @@ export class Card extends THREE.Mesh {
 									this.flip_animation = null;
 									onCompleteCallback?.()
 								})
-							.start();
+								.start();
 						})
 						.start();
 				})
@@ -259,7 +223,7 @@ export class Card extends THREE.Mesh {
 
 	public toggle_pick_up() {
 		this.isBeingDragged = !this.isBeingDragged;
-		const target_z = { value: this.isBeingDragged ? .3 : 0 };
+		const target_z = { value: this.isBeingDragged ? .5 : 0 };
 		const duration = this.isBeingDragged ? 300 : 200;
 		this.pick_up_animation = new Tween(this.drag_lift)
 			.to(target_z, duration)
@@ -275,6 +239,9 @@ export class Card extends THREE.Mesh {
 		this.pick_up_animation?.update(t);
 		this.flip_animation?.update(t);
 		this.z_displacement.value = this.flip_lift.value + this.drag_lift.value;
-		this.receiveShadow = this.z_displacement.value == 0;
+		// This is a hack because the z_displacement_shader makes cards cast shadows on themselves
+		// this needs to be based on the table height
+		this.castShadow = this.z_displacement.value != 0;
+		this.receiveShadow = !this.castShadow;
 	}
 }
