@@ -6,34 +6,17 @@ import { Config } from './config';
 import { DragControls, OrbitControls } from 'three/examples/jsm/Addons'
 import { Card } from './card';
 import { DB } from './utils/database';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
-import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass';
-import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass';
-import { computeScissorForMeshes } from './utils/scissor-helper';
-import { GUI } from 'dat.gui';
+import { OutlineRenderer } from './renderer-setup';
+//import { GUI } from 'dat.gui';
 
 const table_z = -3;
 const table_width = 50;
 const table_height = 50;
 const a_little_bit = .0002
 
-const stats = new Stats()
-stats.showPanel(0) // 0: fps, 1: ms, 2: mb, 3+: custom
-document.body.appendChild(stats.dom);
-stats.dom.style.left = `${document.body.getBoundingClientRect().right - stats.dom.getBoundingClientRect().width - 8}px`;
-stats.dom.style.top = '8px';
-
 const texture_Loader = new THREE.TextureLoader();
-
-const renderer = new THREE.WebGLRenderer({
-	antialias: true,
-	canvas: document.getElementById('game') as HTMLCanvasElement,
-	precision: 'highp',
-});
-renderer.setPixelRatio(devicePixelRatio);
-renderer.shadowMap.enabled = true;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
+const bg = await texture_Loader.loadAsync(Config.BackgroundUrl)
+const card_back_texture = await texture_Loader.loadAsync(Config.CardBackUrl);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('grey');
@@ -64,8 +47,7 @@ scene.add( lighting );
 scene.add( spot_light );
 
 // TABLE
-const bg = await texture_Loader.loadAsync(Config.BackgroundUrl)
-bg.offset = new THREE.Vector2(0,.5)
+bg.offset = new THREE.Vector2(0, .5)
 bg.colorSpace = THREE.SRGBColorSpace;
 bg.wrapS = THREE.RepeatWrapping;
 bg.wrapT = THREE.RepeatWrapping;
@@ -81,7 +63,7 @@ scene.add(table);
 // Middle Line
 const line = new THREE.Mesh(
   new THREE.PlaneGeometry(table_width, .02),
-  new THREE.MeshBasicMaterial({color: 'black', opacity: .2, transparent: true})
+  new THREE.MeshBasicMaterial({color: 'black', opacity: .4, transparent: true})
 );
 line.position.setZ(table_z + a_little_bit);
 scene.add(line);
@@ -95,7 +77,6 @@ const percent = (percent: number) => percent / 100;
 
 const hud_width = height_width.x * percent(hud_left_bound_percent);
 const hud_height = hud_width * Config.CardAspectRatio;
-const card_back_texture = await texture_Loader.loadAsync(Config.CardBackUrl);
 card_back_texture.colorSpace = THREE.SRGBColorSpace;
 const hud = new THREE.Mesh(
   new THREE.PlaneGeometry(hud_width, hud_height),
@@ -103,63 +84,6 @@ const hud = new THREE.Mesh(
 );
 hud.position.set((-(height_width.x - hud_width) / 2) + .001, (height_width.y - hud_height) / 2 - .0005, -camera.near)
 camera.add(hud)
-
-// POST PROCESSING
-const pp_render_target = new THREE.WebGLRenderTarget(
-  window.innerWidth * devicePixelRatio,
-  window.innerHeight * devicePixelRatio,
-  {
-    format: THREE.RGBAFormat,
-    encoding: renderer.outputColorSpace,
-    samples: 3,
-  } as THREE.RenderTargetOptions
-);
-
-const composer = new EffectComposer(renderer, pp_render_target);
-const renderPass = new RenderPass(scene, camera);
-const outputPass = new OutputPass();
-
-const outlinePass = new OutlinePass(
-  new THREE.Vector2(128, 128),
-  scene,
-  camera
-);
-outlinePass.edgeStrength = 4;
-outlinePass.edgeGlow = 1;
-outlinePass.pulsePeriod = 2;
-outlinePass.edgeThickness = 3;
-outlinePass.downSampleRatio = 2;
-outlinePass.visibleEdgeColor.set('#ffffff'); // white outline
-outlinePass.hiddenEdgeColor.set('#190a05');
-outlinePass.selectedObjects = [];
-outlinePass.renderTargetMaskBuffer = new THREE.WebGLRenderTarget(
-  window.innerWidth * devicePixelRatio, 
-  window.innerHeight * devicePixelRatio, 
-  { samples: 3 }
-);
-composer.addPass(renderPass);
-composer.addPass(outlinePass);
-composer.addPass(outputPass);
-
-addEventListener("resize", () => {
-  const height_is_limit = window.innerWidth / window.innerHeight > Config.GameAspectRatio
-
-  const w = height_is_limit 
-    ? window.innerHeight * Config.GameAspectRatio
-    : window.innerWidth;
-
-  const h = height_is_limit 
-    ? window.innerHeight
-    : window.innerWidth / Config.GameAspectRatio;
-
-  // camera.aspect = w / h;
-  // camera.updateProjectionMatrix();
-
-  renderer.setSize(w, h);
-  renderer.setPixelRatio(devicePixelRatio);
-  pp_render_target.setSize(w * devicePixelRatio, h * devicePixelRatio);
-  composer.setSize(w * devicePixelRatio, h * devicePixelRatio);
-});
 
 // const gui = new GUI()
 // const cubeFolder = gui.addFolder('Cube')
@@ -186,7 +110,7 @@ scene.add( field_cards );
 
 const deck = decks[0].cards;
 const blobDict = new Map<Blob, string>()
-for(let i = 0; i < 50; i++) {
+for(let i = 0; i < 300; i++) {
   const image = new Image;
   const blob = deck[i % deck.length].front_blob;
   if(!blobDict.has(blob)) {
@@ -194,26 +118,23 @@ for(let i = 0; i < 50; i++) {
   }
   image.src = blobDict.get(blob)!;
   const start_z = table_z + Config.CardThicknessRatio + (a_little_bit * i);
-  const card = await Card.CreateCardAsync(new THREE.Vector3(-6 + (i / 3), (-i / 14) - 1, start_z), image.src);
+  const card = await Card.CreateCardAsync(new THREE.Vector3(-6 + (i / 10), (-i / 30) - 1, start_z), image.src);
   field_cards.add(card);
-}
-
-const getWorldMousePos = (event: MouseEvent): THREE.Vector2 => {
-  const canvas_bounds = (renderer.domElement as HTMLElement).getBoundingClientRect()
-  const mouse = new THREE.Vector2(((event.clientX - canvas_bounds.left) / renderer.domElement.clientWidth) * 2 - 1, -((event.clientY - canvas_bounds.top) / renderer.domElement.clientHeight) * 2 + 1);
-  return mouse;
 }
 
 const raycaster = new THREE.Raycaster();
 raycaster.layers.set(Card.card_layer);
 
+const renderer = new OutlineRenderer(scene, camera);
+const domElement = renderer.getRendererDomElement();
+
 const getTopClickedCard = (event: MouseEvent): Card | null => {
-  raycaster.setFromCamera(getWorldMousePos(event), camera);
+  raycaster.setFromCamera(renderer.getWorldMousePos(event), camera);
   const intersects = raycaster.intersectObjects(field_cards.children, false).filter(x => x.object instanceof Card);
   return intersects.length == 0 ? null : intersects[0].object as Card;
 }
 
-renderer.domElement.addEventListener('dblclick', (event: MouseEvent) => {
+domElement.addEventListener('dblclick', (event: MouseEvent) => {
   const card = getTopClickedCard(event);
   if(card) {
     moveCardToTop(card);
@@ -222,14 +143,14 @@ renderer.domElement.addEventListener('dblclick', (event: MouseEvent) => {
 }
 , false);
 
-renderer.domElement.addEventListener('mouseup', (event: MouseEvent) => {
+
+domElement.addEventListener('mouseup', (event: MouseEvent) => {
   if(event.button == 2) {
     const card = getTopClickedCard(event);
     if(card) {
       moveCardToTop(card);
       card.flip_over(() => {
         hud.material.map = card.isFlipped ? card_back_texture : (card.card_front as THREE.MeshPhongMaterial).map;
-        hud.material.needsUpdate = true;
       })
     }
   }
@@ -237,7 +158,7 @@ renderer.domElement.addEventListener('mouseup', (event: MouseEvent) => {
 , false);
 
 // CONTROLS
-const zoomControls = new OrbitControls(camera, renderer.domElement);
+const zoomControls = new OrbitControls(camera, domElement);
 zoomControls.zoomSpeed = 3;
 zoomControls.panSpeed = 2;
 zoomControls.enablePan = false;
@@ -247,7 +168,7 @@ zoomControls.maxDistance = 10;
 zoomControls.minDistance = 4;
 zoomControls.target = line.position;
 
-const dragControls = new DragControls(Card.all_cards, camera, renderer.domElement);
+const dragControls = new DragControls(Card.all_cards, camera, domElement);
 dragControls.recursive = true;
 dragControls.raycaster.layers.set(Card.card_layer)
 
@@ -271,13 +192,35 @@ dragControls.addEventListener('dragstart', (event) => {
   moveCardToTop(clicked_card)
   clicked_card.toggle_pick_up()
   lockedDragZPosition = clicked_card.position.z;
-  outlinePass.selectedObjects.push(clicked_card)
+  renderer.addOutlinedObject(clicked_card);
 })
 
 dragControls.addEventListener('dragend', (event) => {
   const clicked_card = (event.object as Card);
+
+  const above = new THREE.Vector3(clicked_card.position.x, clicked_card.position.y + .1, clicked_card.position.z + 2);
+  raycaster.set(above, new THREE.Vector3(0, 0, -1));
+  raycaster.layers.set(Card.card_layer);
+  const intersections = raycaster.intersectObjects(Card.all_cards, true)
+  if(intersections.length > 1) {
+    for(var i = 0; i < intersections.length; i++) {
+      const hit = intersections[i];
+      if(hit.object == clicked_card) {
+        continue;
+      }
+      const cardIsCloseEnough = hit.point.distanceTo(hit.object.position) < .4;
+      if(cardIsCloseEnough) {
+        clicked_card.position.setX(hit.object.position.x)
+        clicked_card.position.setY(hit.object.position.y - Config.CardLabelBottomViewOffset)
+      }
+      const col = cardIsCloseEnough ? 0xff0000 : 0x0000ff;
+      var arrow = new THREE.ArrowHelper(raycaster.ray.direction, raycaster.ray.origin, 8, col );
+      scene.add( arrow );
+      break;
+    }
+  }
   clicked_card.toggle_pick_up()
-  outlinePass.selectedObjects = [];
+  renderer.removeOutlinedObject(clicked_card);
 })
 
 dragControls.addEventListener('drag', (event) => {
@@ -299,7 +242,6 @@ dragControls.addEventListener('hoveron', (event) => {
   const card = (event.object as Card);
   if(card.card_front instanceof THREE.MeshPhongMaterial) {
     hud.material.map = card.isFlipped ? card_back_texture : card.card_front.map
-    //hud.material.needsUpdate = true
   }
 })
 
@@ -309,43 +251,32 @@ dragControls.addEventListener('hoveroff', () => {
 
 // Hack to override the listener
 const hack_me = (dragControls as any);
-renderer.domElement.removeEventListener('pointerdown', hack_me._onPointerDown);
+domElement.removeEventListener('pointerdown', hack_me._onPointerDown);
 const original_OnPointerDown = hack_me._onPointerDown;
 hack_me._onPointerDown = function(event: MouseEvent) {
   if (event.button === 2) { return }
   original_OnPointerDown.call(this, event);
 };
-renderer.domElement.addEventListener('pointerdown', hack_me._onPointerDown);
+domElement.addEventListener('pointerdown', hack_me._onPointerDown);
 
-window.dispatchEvent(new Event('resize'));
-
-renderer.info.autoReset = false;
-renderer.autoClear = false;
+const stats = new Stats()
+stats.showPanel(0) // 0: fps, 1: ms, 2: mb, 3+: custom
+document.body.appendChild(stats.dom);
+stats.dom.style.left = `${document.body.getBoundingClientRect().right - stats.dom.getBoundingClientRect().width - 8}px`;
+stats.dom.style.top = '8px';
 
 const render = function (t: number) {
   requestAnimationFrame( render );
 
-  stats.begin()
+  stats?.begin()
 
-  Card.all_cards.forEach(card => {
-    card.update_animations(t);
-  })
-
-  zoomControls.update();
-
-  renderer.info.reset();
-  renderer.clear();
-  renderer.render(scene, camera);
-  if(outlinePass.selectedObjects.length > 0) {
-    const selected = outlinePass.selectedObjects as THREE.Mesh[];
-    const { x, y, width, height } = computeScissorForMeshes(renderer, camera, selected, 50);
-    renderer.setScissorTest(true);
-    renderer.setScissor(x, y, width, height);
-    composer.render(t);
-    renderer.setScissorTest(false);
+  for(let i = 0; i < Card.all_cards.length; i++) {
+    Card.all_cards[i].update_animations(t);
   }
 
-   stats.end()
+  zoomControls.update();
+  renderer.render(t);
+  stats?.end()
 };
 
 render(0);

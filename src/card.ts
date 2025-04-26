@@ -223,6 +223,13 @@ export class Card extends THREE.Mesh {
 
 	public toggle_pick_up() {
 		this.isBeingDragged = !this.isBeingDragged;
+		if(this.isBeingDragged) {
+			this.card_front.transparent = true;
+			this.card_front.opacity = .3;
+		} else {
+			this.card_front.transparent = false;
+			this.card_front.opacity = 1;
+		}
 		const target_z = { value: this.isBeingDragged ? .5 : 0 };
 		const duration = this.isBeingDragged ? 300 : 200;
 		this.pick_up_animation = new Tween(this.drag_lift)

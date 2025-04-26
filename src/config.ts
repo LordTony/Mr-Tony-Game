@@ -6,6 +6,6 @@ export const Config = {
 	CardAspectRatio: 88 / 63,
 	CardThicknessRatio: .305 / 63,
 	CardZoomViewWidth: 300,
-	CardLabelBottomViewOffset: 20,
+	CardLabelBottomViewOffset: .12,
 	DeckZoneWidth: 125,
 } as const;
