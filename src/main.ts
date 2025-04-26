@@ -3,10 +3,11 @@ import Stats from 'stats.js'
 import orderBy from 'lodash-es/orderBy';
 
 import { Config } from './config';
-import { DragControls, OrbitControls } from 'three/examples/jsm/Addons'
+import { DragControls } from 'three/examples/jsm/Addons'
 import { Card } from './card';
 import { DB } from './utils/database';
 import { OutlineRenderer } from './renderer-setup';
+import { CameraController } from './utils/camera-controller';
 //import { GUI } from 'dat.gui';
 
 const table_z = -3;
@@ -158,15 +159,7 @@ domElement.addEventListener('mouseup', (event: MouseEvent) => {
 , false);
 
 // CONTROLS
-const zoomControls = new OrbitControls(camera, domElement);
-zoomControls.zoomSpeed = 3;
-zoomControls.panSpeed = 2;
-zoomControls.enablePan = false;
-zoomControls.enableRotate = false;
-zoomControls.enableZoom = true;
-zoomControls.maxDistance = 10;
-zoomControls.minDistance = 4;
-zoomControls.target = line.position;
+const camera_controller = new CameraController(camera, domElement, line.position.clone());
 
 const dragControls = new DragControls(Card.all_cards, camera, domElement);
 dragControls.recursive = true;
@@ -274,7 +267,7 @@ const render = function (t: number) {
     Card.all_cards[i].update_animations(t);
   }
 
-  zoomControls.update();
+  camera_controller.update();
   renderer.render(t);
   stats?.end()
 };
