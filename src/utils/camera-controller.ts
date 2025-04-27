@@ -59,6 +59,7 @@ export class CameraController extends OrbitControls {
     private on_pointer_down = (event: MouseEvent) => {
         if(event.button == MOUSE.PAN) {
             this.panning = true;
+            this.locked_camera_z_position = this.camera.position.z;
         }
     }
 

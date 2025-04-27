@@ -10,17 +10,17 @@ import { OutlineRenderer } from './renderer-setup';
 import { CameraController } from './utils/camera-controller';
 //import { GUI } from 'dat.gui';
 
+const domElement = document.getElementById('game') as HTMLCanvasElement;
+const texture_Loader = new THREE.TextureLoader();
 const table_z = -3;
 const table_width = 50;
 const table_height = 50;
 const a_little_bit = .0002
 
-const texture_Loader = new THREE.TextureLoader();
 const bg = await texture_Loader.loadAsync(Config.BackgroundUrl)
 const card_back_texture = await texture_Loader.loadAsync(Config.CardBackUrl);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('grey');
 
 const camera = new THREE.PerspectiveCamera(50, Config.GameAspectRatio, 0.1, 20);
 camera.position.setZ(5);
@@ -30,8 +30,9 @@ scene.add(camera)
 
 // LIGHTS
 const lighting = new THREE.AmbientLight('white', .8);
-const spot_light = new THREE.DirectionalLight('white', 1)
+scene.add( lighting );
 
+const spot_light = new THREE.DirectionalLight('white', 1)
 spot_light.rotateX(Math.PI / 2)
 spot_light.rotateZ(Math.PI / 10)
 spot_light.position.set(0, 0, 4);
@@ -39,12 +40,10 @@ spot_light.castShadow = true;
 spot_light.shadow.mapSize = new THREE.Vector2(1024, 1024);
 spot_light.shadow.camera.top = 9;
 spot_light.shadow.camera.bottom = -5;
-spot_light.shadow.camera.left = -9;
-spot_light.shadow.camera.right = 9;
+spot_light.shadow.camera.left = -12;
+spot_light.shadow.camera.right = 12;
 spot_light.shadow.camera.near = 0;
 spot_light.shadow.camera.far = 20;
-
-scene.add( lighting );
 scene.add( spot_light );
 
 // TABLE
@@ -55,7 +54,7 @@ bg.wrapT = THREE.RepeatWrapping;
 bg.repeat.set(15,15)
 const table = new THREE.Mesh(
   new THREE.PlaneGeometry(table_width, table_height), 
-  new THREE.MeshPhongMaterial({map: bg})
+  new THREE.MeshStandardMaterial({map: bg})
 )
 table.position.setZ(table_z)
 table.receiveShadow = true;
@@ -86,32 +85,20 @@ const hud = new THREE.Mesh(
 hud.position.set((-(height_width.x - hud_width) / 2) + .001, (height_width.y - hud_height) / 2 - .0005, -camera.near)
 camera.add(hud)
 
-// const gui = new GUI()
-// const cubeFolder = gui.addFolder('Cube')
-// cubeFolder.add(card_left.material[2].color, 'r', 0, 1)
-// cubeFolder.add(card_left.material[2].color, 'g', 0, 1)
-// cubeFolder.add(card_left.material[2].color, 'b', 0, 1)
-// cubeFolder.add(card_left.position, 'x', -5, 5)
-// cubeFolder.open()
-
 //Create a helper for the shadow camera (optional)
 //scene.add( new THREE.CameraHelper( spot_light.shadow.camera ) );
 
 //const helper = new THREE.DirectionalLightHelper(spot_light, 1)
 //scene.add( helper );
 
-
 // Game Code
 const db = new DB()
 await db.init()
 const decks = await db.getAllDecks()
 
-const field_cards = new THREE.Group();
-scene.add( field_cards );
-
 const deck = decks[0].cards;
 const blobDict = new Map<Blob, string>()
-for(let i = 0; i < 300; i++) {
+for(let i = 0; i < 60; i++) {
   const image = new Image;
   const blob = deck[i % deck.length].front_blob;
   if(!blobDict.has(blob)) {
@@ -120,18 +107,25 @@ for(let i = 0; i < 300; i++) {
   image.src = blobDict.get(blob)!;
   const start_z = table_z + Config.CardThicknessRatio + (a_little_bit * i);
   const card = await Card.CreateCardAsync(new THREE.Vector3(-6 + (i / 10), (-i / 30) - 1, start_z), image.src);
-  field_cards.add(card);
+  scene.add(card);
 }
 
-const raycaster = new THREE.Raycaster();
-raycaster.layers.set(Card.card_layer);
+const card_raycaster = new THREE.Raycaster();
+card_raycaster.layers.set(Card.card_layer);
 
-const renderer = new OutlineRenderer(scene, camera);
-const domElement = renderer.getRendererDomElement();
+const world_mouse_pos = new THREE.Vector2();
+const getWorldMousePos = (event: MouseEvent): THREE.Vector2 => {
+    const canvas_bounds = domElement.getBoundingClientRect()
+    return world_mouse_pos.set(
+        ((event.clientX - canvas_bounds.left) / canvas_bounds.width) * 2 - 1, 
+        -((event.clientY - canvas_bounds.top) / canvas_bounds.height) * 2 + 1
+    );
+}
+
 
 const getTopClickedCard = (event: MouseEvent): Card | null => {
-  raycaster.setFromCamera(renderer.getWorldMousePos(event), camera);
-  const intersects = raycaster.intersectObjects(field_cards.children, false).filter(x => x.object instanceof Card);
+  card_raycaster.setFromCamera(getWorldMousePos(event), camera);
+  const intersects = card_raycaster.intersectObjects(Card.all_cards, false);
   return intersects.length == 0 ? null : intersects[0].object as Card;
 }
 
@@ -145,13 +139,21 @@ domElement.addEventListener('dblclick', (event: MouseEvent) => {
 , false);
 
 
+let mouse_down_card: Card | null = null;
+domElement.addEventListener('mousedown', (event: MouseEvent) => {
+  if(event.button == 2) {
+    mouse_down_card = getTopClickedCard(event);
+  }
+}
+, false);
+
 domElement.addEventListener('mouseup', (event: MouseEvent) => {
   if(event.button == 2) {
     const card = getTopClickedCard(event);
-    if(card) {
+    if(card && card == mouse_down_card) {
       moveCardToTop(card);
       card.flip_over(() => {
-        hud.material.map = card.isFlipped ? card_back_texture : (card.card_front as THREE.MeshPhongMaterial).map;
+        hud.material.map = card.isFlipped ? card_back_texture : (card.card_front as THREE.MeshStandardMaterial).map;
       })
     }
   }
@@ -161,15 +163,17 @@ domElement.addEventListener('mouseup', (event: MouseEvent) => {
 // CONTROLS
 const camera_controller = new CameraController(camera, domElement, line.position.clone());
 
+camera_controller.addEventListener('change', () => {
+  spot_light.shadow.camera.position.setX(camera.position.x);
+  console.log("moved shadow camera position");
+});
+
 const dragControls = new DragControls(Card.all_cards, camera, domElement);
-dragControls.recursive = true;
 dragControls.raycaster.layers.set(Card.card_layer)
 
 const moveCardToTop = (card_to_put_on_top: Card) => {
-  const higher_cards = orderBy(
-      field_cards.children.filter(card => (card as Card).position.z > card_to_put_on_top.position.z), 
-      (card) => { return (card as Card).position.z}, 
-      "asc") as Card[];
+  const cards_above = Card.all_cards.filter(card => (card as Card).position.z > card_to_put_on_top.position.z);
+  const higher_cards = orderBy(cards_above, (card) => card.position.z);
 
   // swap everything
   higher_cards.forEach(card => {
@@ -178,6 +182,8 @@ const moveCardToTop = (card_to_put_on_top: Card) => {
     card.position.setZ(temp);
   })
 }
+
+const renderer = new OutlineRenderer(scene, camera, domElement);
 
 let lockedDragZPosition = 0;
 dragControls.addEventListener('dragstart', (event) => {
@@ -188,13 +194,15 @@ dragControls.addEventListener('dragstart', (event) => {
   renderer.addOutlinedObject(clicked_card);
 })
 
+const above = new THREE.Vector3();
+const above_direction = new THREE.Vector3(0, 0, -1);
+
 dragControls.addEventListener('dragend', (event) => {
   const clicked_card = (event.object as Card);
 
-  const above = new THREE.Vector3(clicked_card.position.x, clicked_card.position.y + .1, clicked_card.position.z + 2);
-  raycaster.set(above, new THREE.Vector3(0, 0, -1));
-  raycaster.layers.set(Card.card_layer);
-  const intersections = raycaster.intersectObjects(Card.all_cards, true)
+  above.set(clicked_card.position.x, clicked_card.position.y + .1, clicked_card.position.z + 2);
+  card_raycaster.set(above, above_direction);
+  const intersections = card_raycaster.intersectObjects(Card.all_cards, true)
   if(intersections.length > 1) {
     for(var i = 0; i < intersections.length; i++) {
       const hit = intersections[i];
@@ -207,7 +215,7 @@ dragControls.addEventListener('dragend', (event) => {
         clicked_card.position.setY(hit.object.position.y - Config.CardLabelBottomViewOffset)
       }
       const col = cardIsCloseEnough ? 0xff0000 : 0x0000ff;
-      var arrow = new THREE.ArrowHelper(raycaster.ray.direction, raycaster.ray.origin, 8, col );
+      var arrow = new THREE.ArrowHelper(card_raycaster.ray.direction, card_raycaster.ray.origin, 8, col );
       scene.add( arrow );
       break;
     }
@@ -219,27 +227,13 @@ dragControls.addEventListener('dragend', (event) => {
 dragControls.addEventListener('drag', (event) => {
   const clicked_card = (event.object as Card);
   clicked_card.position.setZ(lockedDragZPosition);
-  // var size = new THREE.Vector3()
-  // clicked_card.geometry.boundingBox?.getSize(size)
-  // if(clicked_card.position.y > -(size.y / 2)) {
-  //   (clicked_card.material as THREE.Material[]).forEach(mat => {
-  //     mat.opacity = .5;
-  //     mat.transparent = true;
-  //     mat.needsUpdate = true;
-  //   })
-  // }
-  
 })
 
 dragControls.addEventListener('hoveron', (event) => {
   const card = (event.object as Card);
-  if(card.card_front instanceof THREE.MeshPhongMaterial) {
-    hud.material.map = card.isFlipped ? card_back_texture : card.card_front.map
+  if(card.card_front["map"]) {
+    hud.material.map = card.isFlipped ? card_back_texture : card.card_front["map"]
   }
-})
-
-dragControls.addEventListener('hoveroff', () => {
-  hud.material.map = null
 })
 
 // Hack to override the listener

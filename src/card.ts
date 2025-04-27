@@ -77,7 +77,7 @@ export class Card extends THREE.Mesh {
 		Card.geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
 	}
 
-	private constructor(start_position: Vector3, card_front: THREE.MeshPhongMaterial, card_back: THREE.MeshPhongMaterial) {
+	private constructor(start_position: Vector3, card_front: THREE.MeshStandardMaterial, card_back: THREE.MeshStandardMaterial) {
 		const card_front_clone = card_front.clone();
 		const card_back_clone = card_front.clone();
 		card_front_clone.side = THREE.DoubleSide;
@@ -140,7 +140,7 @@ export class Card extends THREE.Mesh {
 		const back_key = card_back;
 
 		if(!this.url_to_material_cache.has(front_key)) {
-			const material = new THREE.MeshPhongMaterial({ 
+			const material = new THREE.MeshStandardMaterial({ 
 				map: await loader.loadAsync(front_key),
 				...card_material_defaults
 			});
@@ -152,15 +152,15 @@ export class Card extends THREE.Mesh {
 		if(!this.url_to_material_cache.has(back_key)) {
 			const backTexture = await loader.loadAsync(back_key);
 			backTexture.colorSpace = THREE.SRGBColorSpace;
-			const material = new THREE.MeshPhongMaterial({ 
+			const material = new THREE.MeshStandardMaterial({ 
 				map: backTexture,
 				...card_material_defaults
 			});
 			Card.url_to_material_cache.set(back_key, material)
 		}
 
-		const cache_front = Card.url_to_material_cache.get(front_key) as THREE.MeshPhongMaterial;
-		const cache_back = Card.url_to_material_cache.get(back_key) as THREE.MeshPhongMaterial;
+		const cache_front = Card.url_to_material_cache.get(front_key) as THREE.MeshStandardMaterial;
+		const cache_back = Card.url_to_material_cache.get(back_key) as THREE.MeshStandardMaterial;
 		const returnMe = new Card(start_position, cache_front, cache_back)
 		Card.all_cards.push(returnMe);
 		return returnMe;
@@ -223,13 +223,13 @@ export class Card extends THREE.Mesh {
 
 	public toggle_pick_up() {
 		this.isBeingDragged = !this.isBeingDragged;
-		if(this.isBeingDragged) {
-			this.card_front.transparent = true;
-			this.card_front.opacity = .3;
-		} else {
-			this.card_front.transparent = false;
-			this.card_front.opacity = 1;
-		}
+		// if(this.isBeingDragged) {
+		// 	this.card_front.transparent = true;
+		// 	this.card_front.opacity = .3;
+		// } else {
+		// 	this.card_front.transparent = false;
+		// 	this.card_front.opacity = 1;
+		// }
 		const target_z = { value: this.isBeingDragged ? .5 : 0 };
 		const duration = this.isBeingDragged ? 300 : 200;
 		this.pick_up_animation = new Tween(this.drag_lift)

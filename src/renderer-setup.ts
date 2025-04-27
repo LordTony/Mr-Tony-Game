@@ -15,19 +15,15 @@ export class OutlineRenderer {
     private renderPass: RenderPass;
     private outlinePass: OutlinePass;
     private outputPass: OutputPass;
-    private cull_mesh_box = new THREE.Box3();
-    private cull_mesh_size = new THREE.Vector2();
-    private cull_mesh_ndcMax = new THREE.Vector2();
-    private cull_mesh_ndcMin = new THREE.Vector2();
 
-    public constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
+    public constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement) {
         this.scene = scene;
         this.camera = camera;
 
         this.renderer = new THREE.WebGLRenderer({
             antialias: true,
-            canvas: document.getElementById('game') as HTMLCanvasElement,
-            precision: 'highp',
+            canvas: canvas,
+            powerPreference: 'high-performance',
         });
         this.renderer.shadowMap.enabled = true;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -36,18 +32,19 @@ export class OutlineRenderer {
         this.renderer.debug.checkShaderErrors = false;
 
         this.composer = new EffectComposer(this.renderer);
+
         this.renderPass = new RenderPass(scene, camera);
 
         this.outlinePass = new OutlinePass(
-          new THREE.Vector2(256, 256),
+          new THREE.Vector2(128, 128),
           scene,
           camera
         );
         this.outlinePass.edgeStrength = 4;
         this.outlinePass.edgeGlow = 2;
         this.outlinePass.pulsePeriod = 3;
-        this.outlinePass.edgeThickness = 5;
-        this.outlinePass.downSampleRatio = 1;
+        this.outlinePass.edgeThickness = 3;
+        this.outlinePass.downSampleRatio = 1.5;
         this.outlinePass.visibleEdgeColor.set('white');
         this.outlinePass.hiddenEdgeColor.set('white');
         this.outlinePass.selectedObjects = [];
@@ -82,10 +79,11 @@ export class OutlineRenderer {
           camera.aspect = w / h;
           camera.updateProjectionMatrix();
         
+          var pixel_ratio_to_use = Math.min(devicePixelRatio, 1.25);
+
           this.renderer.setSize(w, h);
-          this.renderer.setPixelRatio(devicePixelRatio);
-          this.composer.setSize(w * devicePixelRatio, h * devicePixelRatio);
-          this.composer.renderTarget1.setSize(w * devicePixelRatio, h * devicePixelRatio);
+          this.renderer.setPixelRatio(pixel_ratio_to_use);
+          this.composer.setSize(w * pixel_ratio_to_use, h * pixel_ratio_to_use);
         });
     
         window.dispatchEvent(new Event('resize'));
@@ -119,32 +117,28 @@ export class OutlineRenderer {
         remove(this.outlinePass.selectedObjects, (item) => item == selectedObject);
     }
 
-    public getWorldMousePos = (event: MouseEvent): THREE.Vector2 => {
-        const elem = this.getRendererDomElement();
-        const canvas_bounds = elem.getBoundingClientRect()
-        return new THREE.Vector2(
-            ((event.clientX - canvas_bounds.left) / canvas_bounds.width) * 2 - 1, 
-            -((event.clientY - canvas_bounds.top) / canvas_bounds.height) * 2 + 1
-        );
-    }
-
-    public getRendererDomElement = () => {
-        return this.renderer.domElement as HTMLElement;
-    }
+    // Avoid re-allocating vectors every frame.
+    private card_bounding_sphere = new THREE.Sphere();
+    private renderer_size = new THREE.Vector2();
+    private scissor_normalized_coords_bottom_right = new THREE.Vector2();
+    private scissor_normalized_coords_top_left = new THREE.Vector2();
+    private edge_point = new THREE.Vector3();
+    private center_ndc = new THREE.Vector3();
 
     private cullMeshes = (scissor: ScissorRect): THREE.Mesh[] => {
+
         const returnMe: THREE.Mesh[] = [];
 
-        this.renderer.getSize(this.cull_mesh_size);
+        this.renderer.getSize(this.renderer_size);
 
-        this.cull_mesh_ndcMin.set(
-            (scissor.x / this.cull_mesh_size.x) * 2 - 1,
-            (scissor.y / this.cull_mesh_size.y) * 2 - 1
+        this.scissor_normalized_coords_top_left.set(
+            (scissor.x / this.renderer_size.x) * 2 - 1,
+            (scissor.y / this.renderer_size.y) * 2 - 1
         );
 
-        this.cull_mesh_ndcMax.set(
-            ((scissor.x + scissor.width) / this.cull_mesh_size.x) * 2 - 1,
-            ((scissor.y + scissor.height) / this.cull_mesh_size.y) * 2 - 1
+        this.scissor_normalized_coords_bottom_right.set(
+            ((scissor.x + scissor.width) / this.renderer_size.x) * 2 - 1,
+            ((scissor.y + scissor.height) / this.renderer_size.y) * 2 - 1
         );
 
         // for every mesh in scene:
@@ -154,20 +148,29 @@ export class OutlineRenderer {
 
             // get its world‑space bounding box
             const bufferGeom = mesh.geometry as THREE.BufferGeometry;
-            if(!bufferGeom.boundingBox) {
-                bufferGeom.computeBoundingBox();
+            if (!bufferGeom.boundingSphere) {
+                bufferGeom.computeBoundingSphere();
             }
-            this.cull_mesh_box.copy(bufferGeom.boundingBox!);
-            this.cull_mesh_box.applyMatrix4(mesh.matrixWorld);
 
-            // project min+max corners to NDC
-            const mn = this.cull_mesh_box.min.project(this.camera);
-            const mx = this.cull_mesh_box.max.project(this.camera);
+            this.card_bounding_sphere.copy(bufferGeom.boundingSphere!);
+            this.card_bounding_sphere.applyMatrix4(mesh.matrixWorld);
+            
+            this.center_ndc.copy(this.card_bounding_sphere.center)
+            this.center_ndc.project(this.camera)
 
-            // quick test: does [mn,mx] overlap [ndcMin,ndcMax]?
-            const overlaps =
-                mx.x >= this.cull_mesh_ndcMin.x && mn.x <= this.cull_mesh_ndcMax.x &&
-                mx.y >= this.cull_mesh_ndcMin.y && mn.y <= this.cull_mesh_ndcMax.y;
+            this.edge_point.copy(this.card_bounding_sphere.center)
+            this.edge_point.setX(this.edge_point.x + this.card_bounding_sphere.radius)
+            this.edge_point.project(this.camera);
+
+            const fudge_factor = .2;
+            const radiusNDC = Math.abs(this.edge_point.x - this.center_ndc.x) + fudge_factor;
+
+            const overlaps = 
+                (this.center_ndc.x + radiusNDC) >= this.scissor_normalized_coords_top_left.x &&
+                (this.center_ndc.x - radiusNDC) <= this.scissor_normalized_coords_bottom_right.x &&
+                (this.center_ndc.y + radiusNDC) >= this.scissor_normalized_coords_top_left.y &&
+                (this.center_ndc.y - radiusNDC) <= this.scissor_normalized_coords_bottom_right.y;
+
             if(!overlaps) {
                 mesh.visible = false;
                 returnMe.push(mesh);
@@ -180,7 +183,7 @@ export class OutlineRenderer {
           this.renderer.info.reset();
           this.renderer.clear();
           const selected = this.outlinePass.selectedObjects as THREE.Mesh[];
-            this.renderer.render(this.scene, this.camera);
+          this.renderer.render(this.scene, this.camera);
           if(selected.length > 0) {
             const s: ScissorRect = computeScissorForMeshes(this.renderer, this.camera, selected, 10);
             this.renderer.setScissorTest(true);
